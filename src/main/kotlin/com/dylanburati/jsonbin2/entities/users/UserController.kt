@@ -7,6 +7,7 @@ import io.javalin.http.Handler
 object UserController {
   private val services = ServiceContainer
   data class LoginArgs(val username: String = "", val password: String = "")
+  data class LoginResult(val success: Boolean, val token: String, val userId: String)
 
   fun createUser(ctx: Context) {
     val args = ctx.body<LoginArgs>()
@@ -17,19 +18,21 @@ object UserController {
     }
 
     val user = services.userService.createUser(args.username, args.password)
-    ctx.json(object {
-      val success = true
-      val userId = user.id
-    })
+    ctx.json(LoginResult(
+      success = true,
+      token = services.userService.generateJWT(user),
+      userId = user.id
+    ))
   }
 
   fun login(ctx: Context) {
     val args = ctx.body<LoginArgs>()
 
     val user = services.userService.authenticateUser(args.username, args.password)
-    ctx.json(object {
-      val success = true
-      val userId = user.id
-    })
+    ctx.json(LoginResult(
+      success = true,
+      token = services.userService.generateJWT(user),
+      userId = user.id
+    ))
   }
 }
