@@ -11,7 +11,6 @@ import com.dylanburati.jsonbin2.entities.ServiceContainer
 import io.javalin.http.ForbiddenResponse
 import io.javalin.http.UnauthorizedResponse
 import kotliquery.queryOf
-import java.lang.Exception
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.*
 
@@ -42,7 +41,7 @@ class UserService(container: ServiceContainer) : BaseService(container) {
           id = row.string("id"),
           username = row.string("username"),
           authType = User.AuthType.valueOf(row.string("auth_type")),
-          password = row.string("password")
+          password = row.stringOrNull("password")
         )
       }
       .asSingle
@@ -56,7 +55,7 @@ class UserService(container: ServiceContainer) : BaseService(container) {
           id = row.string("id"),
           username = row.string("username"),
           authType = User.AuthType.valueOf(row.string("auth_type")),
-          password = row.string("password")
+          password = row.stringOrNull("password")
         )
       }
       .asSingle
