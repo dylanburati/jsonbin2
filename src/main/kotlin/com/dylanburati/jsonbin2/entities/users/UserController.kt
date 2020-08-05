@@ -22,6 +22,12 @@ object UserController {
     val username: String
   )
 
+  data class CurrentUserResult(
+    val success: Boolean,
+    val userId: String,
+    val username: String
+  )
+
   fun createUser(ctx: Context) {
     val args = ctx.body<CreateUserArgs>()
     if (args.isGuest) {
@@ -56,6 +62,17 @@ object UserController {
       LoginResult(
         success = true,
         token = services.userService.generateJWT(user),
+        userId = user.id,
+        username = user.username
+      )
+    )
+  }
+
+  fun currentUser(ctx: Context) {
+    val user = ctx.attribute<User>("user")!!
+    ctx.json(
+      CurrentUserResult(
+        success = true,
         userId = user.id,
         username = user.username
       )

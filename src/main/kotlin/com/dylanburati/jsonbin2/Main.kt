@@ -29,6 +29,11 @@ fun main() {
       post(UserController::login)
     }
 
+    before("/me", authHandler)
+    path("/me") {
+      get(UserController::currentUser)
+    }
+
     before("/g", authHandler)
     path("/g") {
       post(ConversationController::createConversation)
@@ -42,9 +47,6 @@ fun main() {
         ws.onClose(ConversationController::handleClose)
       }
     }
-  }
-  app.wsBefore("/ws/*") { ws ->
-
   }
 
   val badRequestHandler: ExceptionHandler<Exception> = ExceptionHandler { e, ctx ->
