@@ -19,6 +19,7 @@ object Config {
 
   class JWT {
     companion object {
+      const val headerKey = "X-Access-Token"
       const val expiresInMillis = 1000L * 60 * 60 * 24 * 10
       val secret = env["JWT_SECRET"] ?: throw IllegalArgumentException("JWT secret missing")
     }

@@ -1,33 +1,48 @@
 package com.dylanburati.jsonbin2
 
+import com.dylanburati.jsonbin2.entities.ServiceContainer
+import com.dylanburati.jsonbin2.entities.conversations.ConversationController
 import com.dylanburati.jsonbin2.entities.users.UserController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
-import io.javalin.http.ForbiddenResponse
-import io.javalin.http.UnauthorizedResponse
-import java.lang.IllegalStateException
+import io.javalin.http.*
 
-fun main(args: Array<String>) {
+fun main() {
   val app = Javalin.create { config ->
     config.enableCorsForAllOrigins()
   }.start(7000)
 
-  app.routes {
-    path("u") {
-      post(UserController::createUser)
-    }
-
-    path("login") {
-      post(UserController::login)
+  val authHandler = Handler { ctx ->
+    if (ctx.method() != "OPTIONS") {
+      val token = ctx.header(Config.JWT.headerKey) ?: throw UnauthorizedResponse("Missing JWT")
+      ctx.attribute("user", ServiceContainer.userService.verifyJWT(token))
     }
   }
 
-  app.exception(IllegalStateException::class.java) { e, ctx ->
+  app.routes {
+    path("/u") {
+      post(UserController::createUser)
+    }
+
+    path("/login") {
+      post(UserController::login)
+    }
+
+    before("/g", authHandler)
+    path("/g") {
+      post(ConversationController::createConversation)
+    }
+  }
+
+  val badRequestHandler: ExceptionHandler<Exception> = ExceptionHandler { e, ctx ->
     ctx.status(400)
     ctx.json(object {
       val message = e.message ?: "Unknown error"
     })
   }
+  app.exception(BadRequestResponse::class.java, badRequestHandler)
+  app.exception(IllegalArgumentException::class.java, badRequestHandler)
+  app.exception(IllegalStateException::class.java, badRequestHandler)
 
   app.exception(UnauthorizedResponse::class.java) { e, ctx ->
     ctx.status(401)

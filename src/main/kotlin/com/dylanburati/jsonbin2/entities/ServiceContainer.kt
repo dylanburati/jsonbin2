@@ -1,6 +1,7 @@
 package com.dylanburati.jsonbin2.entities
 
 import com.dylanburati.jsonbin2.Config
+import com.dylanburati.jsonbin2.entities.conversations.ConversationService
 import com.dylanburati.jsonbin2.entities.users.UserService
 import kotliquery.*
 import org.flywaydb.core.Flyway
@@ -15,4 +16,5 @@ object ServiceContainer {
 
   val session = this.initSession()
   val userService = UserService(this)
+  val conversationService = ConversationService(this)
 }

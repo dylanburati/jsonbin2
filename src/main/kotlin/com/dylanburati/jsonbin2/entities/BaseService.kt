@@ -1,10 +1,11 @@
 package com.dylanburati.jsonbin2.entities
 
 import java.security.SecureRandom
-import java.util.Base64
-import kotlin.random.Random
+import java.util.*
 
-abstract class BaseService {
+
+abstract class BaseService(val container: ServiceContainer) {
+  val session = container.session
   val secureRandom = SecureRandom()
 
   /**

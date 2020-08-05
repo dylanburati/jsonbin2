@@ -15,9 +15,7 @@ import java.lang.Exception
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.*
 
-class UserService(private val container: ServiceContainer): BaseService() {
-  private val session = container.session
-
+class UserService(container: ServiceContainer) : BaseService(container) {
   private val bcryptHasher: BCrypt.Hasher
     get() {
       return BCrypt.with(
@@ -37,11 +35,53 @@ class UserService(private val container: ServiceContainer): BaseService() {
 
   private val jwtVerifier = JWT.require(Algorithm.HMAC256(Config.JWT.secret)).build()
 
-  fun createUser(username: String, password: String): User {
-    val existsQuery = queryOf("""SELECT * FROM "user" WHERE "username" = ? LIMIT 1""", username)
-      .map { row -> row.string("id") }
+  fun getById(id: String): User? {
+    val findOneQuery = queryOf("""SELECT * FROM "user" WHERE "id" = ? LIMIT 1""", id)
+      .map { row ->
+        User(
+          id = row.string("id"),
+          username = row.string("username"),
+          authType = User.AuthType.valueOf(row.string("auth_type")),
+          password = row.string("password")
+        )
+      }
       .asSingle
-    val exists = session.run(existsQuery)
+    return session.run(findOneQuery)
+  }
+
+  fun getByUsername(username: String): User? {
+    val findOneQuery = queryOf("""SELECT * FROM "user" WHERE "username" = ? LIMIT 1""", username)
+      .map { row ->
+        User(
+          id = row.string("id"),
+          username = row.string("username"),
+          authType = User.AuthType.valueOf(row.string("auth_type")),
+          password = row.string("password")
+        )
+      }
+      .asSingle
+    return session.run(findOneQuery)
+  }
+
+  fun save(user: User) {
+    val rowsAffected = session.run(
+      queryOf(
+        """
+        INSERT INTO "user" ("id", "username", "auth_type", "password")
+        VALUES (?, ?, ?, ?)
+        """,
+        user.id,
+        user.username,
+        user.authType.name,
+        user.password
+      ).asUpdate
+    )
+
+    if (rowsAffected != 1) throw Exception("Could not insert record")
+  }
+
+  fun createUser(username: String, password: String): User {
+    val exists = getByUsername(username)
 
     check(exists == null) { "Username exists" }
 
@@ -49,42 +89,33 @@ class UserService(private val container: ServiceContainer): BaseService() {
     val hashed = bcryptHasher.hash(10, password.toCharArray())
     val user = User(id, username, User.AuthType.BCRYPT, hashed.toString(UTF_8))
 
-    val rowsAffected = session.run(queryOf(
-      """
-        INSERT INTO "user" ("id", "username", "auth_type", "password")
-        VALUES (?, ?, ?, ?)
-      """,
-      user.id,
-      user.username,
-      user.authType.name,
-      user.password
-    ).asUpdate)
+    save(user)
 
-    if (rowsAffected != 1) throw Exception("Could not insert record")
+    return user
+  }
 
-    return user;
+  fun createGuest(): User {
+    val id = generateId()
+    val username = "guest${secureRandom.nextInt(1000000).toString().padStart(6, '0')}"
+    val user = User(id, username, User.AuthType.NONE, null)
+
+    save(user)
+
+    return user
   }
 
   fun authenticateUser(username: String, password: String): User {
-    val findOneQuery = queryOf("""SELECT * FROM "user" WHERE "username" = ? LIMIT 1""", username)
-      .map { row ->
-        User(
-          row.string("id"),
-          row.string("username"),
-          User.AuthType.valueOf(row.string("auth_type")),
-          row.string("password")
-        )
-      }
-      .asSingle
-    val user = session.run(findOneQuery)
+    val user = getByUsername(username)
 
     checkNotNull(user) { "User does not exist" }
+    check(user.authType === User.AuthType.BCRYPT) { "Can not log into guest account" }
 
     val result =
-      bcryptVerifier.verify(password.toCharArray(), user.password) ?: throw Exception("Unable to verify password")
+      bcryptVerifier.verify(password.toCharArray(), user.password)
+        ?: throw Exception("Unable to verify password")
 
     if (!result.verified) throw ForbiddenResponse("Incorrect password")
-    return user;
+    return user
   }
 
   fun generateJWT(user: User): String {
@@ -95,11 +126,12 @@ class UserService(private val container: ServiceContainer): BaseService() {
       .sign(alg)
   }
 
-  fun verifyJWT(token: String): String {
+  fun verifyJWT(token: String): User {
     try {
       val decoded = jwtVerifier.verify(token)
       val claim = decoded.getClaim("userId")
-      return claim.asString() ?: throw UnauthorizedResponse("Invalid JWT (missing userId)")
+      val id = claim.asString() ?: throw UnauthorizedResponse("Invalid JWT (missing userId)")
+      return this.getById(id) ?: throw UnauthorizedResponse("Invalid JWT (deleted userId)")
     } catch (e: JWTDecodeException) {
       throw UnauthorizedResponse("Invalid JWT")
     }
