@@ -3,10 +3,9 @@ package com.dylanburati.jsonbin2.entities.messages
 import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationUser
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import kotliquery.queryOf
-import java.lang.Exception
 import java.time.Instant
 
 class MessageService(container: ServiceContainer) : BaseService(container) {
@@ -32,7 +31,7 @@ class MessageService(container: ServiceContainer) : BaseService(container) {
           ),
           time = row.instant("time"),
           target = row.string("target"),
-          content = jacksonObjectMapper().readValue<Map<String, Any>>(row.string("content"))
+          content = jacksonObjectMapper().readTree(row.string("content"))
         )
       }
       .asList
@@ -57,7 +56,7 @@ class MessageService(container: ServiceContainer) : BaseService(container) {
     if (rowsAffected != 1) throw Exception("Could not insert record")
   }
 
-  fun send(sender: ConversationUser, target: String, content: Map<String, Any>): Message {
+  fun send(sender: ConversationUser, target: String, content: JsonNode): Message {
     val message = Message(
       id = generateId(),
       sender = sender,

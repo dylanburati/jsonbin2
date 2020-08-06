@@ -2,6 +2,7 @@ package com.dylanburati.jsonbin2
 
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationController
+import com.dylanburati.jsonbin2.entities.conversations.RealtimeController
 import com.dylanburati.jsonbin2.entities.users.UserController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
@@ -42,9 +43,9 @@ fun main() {
     path("/ws") {
       ws(":conversation-id") {
         ws ->
-        ws.onConnect(ConversationController::handleConnect)
-        ws.onMessage(ConversationController::handleMessage)
-        ws.onClose(ConversationController::handleClose)
+        ws.onConnect(RealtimeController::handleConnect)
+        ws.onMessage(RealtimeController::handleMessage)
+        ws.onClose(RealtimeController::handleClose)
       }
     }
   }

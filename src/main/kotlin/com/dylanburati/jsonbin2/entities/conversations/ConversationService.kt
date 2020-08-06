@@ -12,8 +12,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       .map { row ->
         Conversation(
           id = row.string("id"),
-          title = row.string("title"),
-          users = ArrayList()
+          title = row.string("title")
         )
       }
       .asSingle
@@ -25,8 +24,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       .map { row ->
         Conversation(
           id = row.string("id"),
-          title = row.string("title"),
-          users = ArrayList()
+          title = row.string("title")
         )
       }
       .asSingle
@@ -38,7 +36,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     check(exists == null) { "Conversation with the same title exists" }
 
     val id = generateId()
-    val conversation = Conversation(id = id, title = title, users = ArrayList())
+    val conversation = Conversation(id = id, title = title)
 
     val rowsAffected = session.run(
       queryOf(
@@ -50,13 +48,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
 
     if (rowsAffected != 1) throw Exception("Could not insert record")
 
-    conversation.users.add(
-      upsertConversationUser(
-        conversation.id,
-        owner,
-        nickname ?: owner.username
-      )
-    )
+    upsertConversationUser(conversation.id, owner, nickname ?: owner.username)
     return conversation
   }
 
@@ -65,13 +57,12 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     user: User,
     nickname: String?
   ): ConversationUser {
-    val convUser = findConversationUser(conversationId, user.id) ?:
-      ConversationUser(
-        id = generateId(),
-        conversationId = conversationId,
-        userId = user.id,
-        nickname = nickname ?: user.username
-      )
+    val convUser = findConversationUser(conversationId, user.id) ?: ConversationUser(
+      id = generateId(),
+      conversationId = conversationId,
+      userId = user.id,
+      nickname = nickname ?: user.username
+    )
 
     if (nickname != null) convUser.nickname = nickname
     val rowsAffected = session.run(
@@ -117,5 +108,23 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       .asSingle
 
     return session.run(findOneQuery)
+  }
+
+  fun getConversationUsers(conversationId: String): List<ConversationUser> {
+    val findAllQuery = queryOf(
+      """SELECT * FROM "conversation_user" WHERE "conversation_id" = ?""",
+      conversationId
+    )
+      .map { row ->
+        ConversationUser(
+          id = row.string("id"),
+          conversationId = row.string("conversation_id"),
+          userId = row.string("user_id"),
+          nickname = row.string("nickname")
+        )
+      }
+      .asList
+
+    return session.run(findAllQuery)
   }
 }
