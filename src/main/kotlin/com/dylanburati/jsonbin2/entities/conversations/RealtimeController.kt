@@ -15,6 +15,7 @@ import org.eclipse.jetty.util.log.Log
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 object RealtimeController {
   private val logger = Log.getLogger(this::class.java)
@@ -34,6 +35,7 @@ object RealtimeController {
 
   data class GetMessagesResult(val type: String, val data: List<Message>)
   data class SendMessageResult(val type: String, val data: Message)
+  data class StatusResult(val type: String, val data: String)
 
   fun handleConnect(ctx: WsContext) {
     val convId = ctx.pathParam("conversation-id")
@@ -57,7 +59,16 @@ object RealtimeController {
       services.conversationService.upsertConversationUser(convId, user, args.nickname)
     val active = activeConversations[convId]!!
     allSessions[ctx.sessionId] = convUser
-    active.userMap[convUser.id] = ctx
+    active.run {
+      sessionMap[ctx.sessionId] = ctx
+      val ct = active.userMap.compute(convUser.id) { k, v ->
+        if (v == null) AtomicInteger(1)
+        else v.apply { incrementAndGet() }
+      }
+      if (ct!!.get() == 1)
+        broadcast(StatusResult(type = "status", data = "${convUser.nickname} joined"))
+    }
+
 
     val userList = services.conversationService.getConversationUsers(convId)
 
@@ -67,7 +78,9 @@ object RealtimeController {
       nickname = convUser.nickname,
       users = userList.map {
         JsonExtended(it).also { obj ->
-          obj.extensions["isActive"] = active.userMap.containsKey(it.id)
+          obj.extensions["isActive"] = active.userMap[it.id].let { ct ->
+            ct != null && ct.get() > 0
+          }
         }
       }
     ))
@@ -99,16 +112,10 @@ object RealtimeController {
       }
       else -> {
         val msg = services.messageService.send(convUser, inMessage.action, inMessage.data)
-        activeConversations[convUser.conversationId]!!.userMap
-          .filter { (_, otherCtx) -> otherCtx.session.isOpen }
-          .forEach { (_, otherCtx) ->
-            otherCtx.send(
-              SendMessageResult(
-                type = "message",
-                data = msg
-              )
-            )
-          }
+        activeConversations[convUser.conversationId]!!.broadcast(SendMessageResult(
+          type = "message",
+          data = msg
+        ))
       }
     }
   }
@@ -118,8 +125,17 @@ object RealtimeController {
     val convId = ctx.pathParam("conversation-id")
     val active = activeConversations[convId] ?: return
     val empty = active.run {
-      if (convUser != null) userMap.remove(convUser.id)
-      userMap.isEmpty()
+      sessionMap.remove(ctx.sessionId)
+      sessionMap.isEmpty()
+    }
+    if (convUser != null) {
+      active.run {
+        val ct = userMap.computeIfPresent(convUser.id) { k, v ->
+          v.apply { decrementAndGet() }
+        }
+        if (ct?.get() == 0)
+          broadcast(StatusResult(type = "status", data = "${convUser.nickname} left"))
+      }
     }
     if (empty) {
       scheduleUnloadConversation(convId)
@@ -129,7 +145,7 @@ object RealtimeController {
   private fun scheduleUnloadConversation(conversationId: String) {
     taskScheduler.schedule(
       {
-        if (activeConversations[conversationId]?.userMap?.isEmpty() == true) {
+        if (activeConversations[conversationId]?.sessionMap?.isEmpty() == true) {
           activeConversations.remove(conversationId)
           logger.info("Unloaded conversation $conversationId")
         }
