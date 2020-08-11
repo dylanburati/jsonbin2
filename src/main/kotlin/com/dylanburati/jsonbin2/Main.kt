@@ -3,6 +3,7 @@ package com.dylanburati.jsonbin2
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationController
 import com.dylanburati.jsonbin2.entities.conversations.RealtimeController
+import com.dylanburati.jsonbin2.entities.remote.questions.QuestionController
 import com.dylanburati.jsonbin2.entities.users.UserController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
@@ -40,6 +41,11 @@ fun main() {
       post(ConversationController::createConversation)
     }
 
+    before("/guessr/q", authHandler)
+    path("/guessr/q") {
+      get("refresh", QuestionController::refresh)
+    }
+
     path("/ws") {
       ws(":conversation-id") {
         ws ->
@@ -61,16 +67,24 @@ fun main() {
   app.exception(IllegalStateException::class.java, badRequestHandler)
 
   app.exception(UnauthorizedResponse::class.java) { e, ctx ->
-    ctx.status(401)
+    ctx.status(e.status)
     ctx.json(object {
       val message = "Unauthenticated: ${e.message ?: "Unknown error"}"
     })
   }
 
   app.exception(ForbiddenResponse::class.java) { e, ctx ->
-    ctx.status(403)
+    ctx.status(e.status)
     ctx.json(object {
       val message = "Forbidden: ${e.message ?: "Unknown error"}"
+    })
+  }
+
+  app.exception(TooManyRequestsResponse::class.java) { e, ctx ->
+    ctx.status(e.status)
+    ctx.header("Retry-After", e.retryAfterSeconds.toString())
+    ctx.json(object {
+      val message = "Too Many Requests: ${e.message ?: "Unknown error"}"
     })
   }
 
