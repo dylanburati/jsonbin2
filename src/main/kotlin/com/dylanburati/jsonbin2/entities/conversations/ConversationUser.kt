@@ -7,4 +7,7 @@ data class ConversationUser(
   @JsonIgnore var conversationId: String,
   var userId: String,
   var nickname: String
-)
+) {
+  @JsonIgnore
+  var conversation: Conversation? = null
+}

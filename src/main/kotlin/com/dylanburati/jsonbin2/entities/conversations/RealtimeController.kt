@@ -15,7 +15,6 @@ import org.eclipse.jetty.util.log.Log
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 object RealtimeController {
   private val logger = Log.getLogger(this::class.java)
@@ -25,17 +24,16 @@ object RealtimeController {
   private val services = ServiceContainer
 
   data class MessageArgs(val action: String?, val data: JsonNode)
-  data class LoginArgs(val token: String?, val nickname: String?)
+  data class LoginArgs(val token: String?)
   data class LoginResult(
     val type: String,
     val title: String,
     val nickname: String,
+    val isFirstLogin: Boolean,
     val users: List<JsonExtended<ConversationUser>>
   )
 
   data class GetMessagesResult(val type: String, val data: List<Message>)
-  data class SendMessageResult(val type: String, val data: Message)
-  data class StatusResult(val type: String, val data: String)
 
   fun handleConnect(ctx: WsContext) {
     val convId = ctx.pathParam("conversation-id")
@@ -51,31 +49,24 @@ object RealtimeController {
   private fun handleLoginMessage(ctx: WsMessageContext, args: LoginArgs) {
     val convId = ctx.pathParam("conversation-id")
 
-    if (args.nickname != null) ConversationController.validateNickname(args.nickname)
     if (args.token == null) throw UnauthorizedResponse("Missing JWT")
     val user = services.userService.verifyJWT(args.token)
 
+    val userList = services.conversationService.getConversationUsers(convId).toMutableList()
     val convUser =
-      services.conversationService.upsertConversationUser(convId, user, args.nickname)
+      services.conversationService.upsertConversationUser(convId, user, null)
     val active = activeConversations[convId]!!
     allSessions[ctx.sessionId] = convUser
-    active.run {
-      sessionMap[ctx.sessionId] = ctx
-      val ct = active.userMap.compute(convUser.id) { k, v ->
-        if (v == null) AtomicInteger(1)
-        else v.apply { incrementAndGet() }
-      }
-      if (ct!!.get() == 1)
-        broadcast(StatusResult(type = "status", data = "${convUser.nickname} joined"))
-    }
+    active.handleSessionOpen(ctx, convUser)
 
-
-    val userList = services.conversationService.getConversationUsers(convId)
+    val isFirstLogin = userList.none { it.id == convUser.id }
+    if (isFirstLogin) userList.add(convUser)
 
     ctx.send(LoginResult(
       type = "login",
       title = active.conversation.title,
       nickname = convUser.nickname,
+      isFirstLogin = isFirstLogin,
       users = userList.map {
         JsonExtended(it).also { obj ->
           obj.extensions["isActive"] = active.userMap[it.id].let { ct ->
@@ -96,7 +87,7 @@ object RealtimeController {
 
       val args = jacksonObjectMapper()
         .runCatching { treeToValue<LoginArgs>(inMessage.data)!! }
-        .getOrElse { throw IllegalStateException("Could not get token and nickname from login data") }
+        .getOrElse { error("Could not get token and nickname from login data") }
 
       return handleLoginMessage(ctx, args)
     }
@@ -111,11 +102,11 @@ object RealtimeController {
         )
       }
       else -> {
-        val msg = services.messageService.send(convUser, inMessage.action, inMessage.data)
-        activeConversations[convUser.conversationId]!!.broadcast(SendMessageResult(
-          type = "message",
-          data = msg
-        ))
+        activeConversations[convUser.conversationId]!!.handleMessage(
+          convUser,
+          inMessage.action,
+          inMessage.data
+        )
       }
     }
   }
@@ -124,20 +115,8 @@ object RealtimeController {
     val convUser = allSessions.remove(ctx.sessionId)
     val convId = ctx.pathParam("conversation-id")
     val active = activeConversations[convId] ?: return
-    val empty = active.run {
-      sessionMap.remove(ctx.sessionId)
-      sessionMap.isEmpty()
-    }
-    if (convUser != null) {
-      active.run {
-        val ct = userMap.computeIfPresent(convUser.id) { k, v ->
-          v.apply { decrementAndGet() }
-        }
-        if (ct?.get() == 0)
-          broadcast(StatusResult(type = "status", data = "${convUser.nickname} left"))
-      }
-    }
-    if (empty) {
+    active.handleSessionClose(ctx, convUser)
+    if (active.sessionMap.isEmpty()) {
       scheduleUnloadConversation(convId)
     }
   }

@@ -38,6 +38,7 @@ fun main() {
 
     before("/g", authHandler)
     path("/g") {
+      get(ConversationController::listConversations)
       post(ConversationController::createConversation)
     }
 

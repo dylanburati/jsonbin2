@@ -4,7 +4,6 @@ import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.users.User
 import kotliquery.queryOf
-import java.lang.Exception
 
 class ConversationService(container: ServiceContainer) : BaseService(container) {
   fun getById(id: String): Conversation? {
@@ -122,6 +121,30 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
           userId = row.string("user_id"),
           nickname = row.string("nickname")
         )
+      }
+      .asList
+
+    return session.run(findAllQuery)
+  }
+
+  fun getUserConversations(userId: String): List<ConversationUser> {
+    val findAllQuery = queryOf(
+      """SELECT "cu".*, "conv"."title"
+        FROM "conversation_user" "cu"
+        LEFT JOIN "conversation" "conv" ON "conv"."id" = "conversation_id"
+        WHERE "user_id" = ?""",
+      userId
+    )
+      .map { row ->
+        val convId = row.string("conversation_id")
+        val convUser = ConversationUser(
+          id = row.string("id"),
+          conversationId = convId,
+          userId = row.string("user_id"),
+          nickname = row.string("nickname")
+        )
+        convUser.conversation = Conversation(id = convId, title = row.string("title"))
+        convUser
       }
       .asList
 

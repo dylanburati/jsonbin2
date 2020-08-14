@@ -2,37 +2,24 @@ package com.dylanburati.jsonbin2.entities.conversations
 
 import com.dylanburati.jsonbin2.entities.JsonExtended
 import com.dylanburati.jsonbin2.entities.ServiceContainer
-import com.dylanburati.jsonbin2.entities.messages.Message
 import com.dylanburati.jsonbin2.entities.users.User
 import io.javalin.http.Context
-import org.eclipse.jetty.util.log.Log
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ScheduledThreadPoolExecutor
 
 object ConversationController {
-  private val logger = Log.getLogger(this::class.java)
-  private val taskScheduler = ScheduledThreadPoolExecutor(1)
-  private val allSessions = ConcurrentHashMap<String, ConversationUser>()
-  private val activeConversations = ConcurrentHashMap<String, ActiveConversation>()
   private val services = ServiceContainer
 
   data class CreateConversationArgs(val title: String = "", val nickname: String = "")
   data class CreateConversationResult(
     val success: Boolean,
     val title: String,
+    val nickname: String,
     val conversationId: String
   )
 
-  data class MessageArgs(val action: String?, val data: Map<String, Any>?)
-  data class LoginResult(
-    val type: String,
-    val title: String,
-    val nickname: String,
-    val users: List<JsonExtended<ConversationUser>>
+  data class ListConversationsResult(
+    val success: Boolean,
+    val conversations: List<JsonExtended<Conversation>>
   )
-
-  data class GetMessagesResult(val type: String, val data: List<Message>)
-  data class SendMessageResult(val type: String, val data: Message)
 
   fun validateTitle(title: String) {
     check(title.length in 2..63) { "Title must be 2-63 characters" }
@@ -57,8 +44,23 @@ object ConversationController {
       CreateConversationResult(
         success = true,
         title = conv.title,
+        nickname = args.nickname,
         conversationId = conv.id
       )
     )
+  }
+
+  fun listConversations(ctx: Context) {
+    val user = ctx.attribute<User>("user")!!
+    val conversations = services.conversationService.getUserConversations(user.id)
+    val result = conversations.map { convUser ->
+      val conv = convUser.conversation
+      checkNotNull(conv) { "Expected relation to be loaded" }
+      JsonExtended(conv).also { obj ->
+        obj.extensions["nickname"] = convUser.nickname
+      }
+    }
+
+    ctx.json(ListConversationsResult(success = true, conversations = result))
   }
 }
