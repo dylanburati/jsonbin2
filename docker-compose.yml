@@ -4,13 +4,16 @@ services:
   haproxy:
     build: ./docker/haproxy
     environment:
-      DOMAINS: datagame.live www.datagame.live
+      DOMAINS: datagame.live www.datagame.live blog.datagame.live
       FULLCHAIN: /certs/fullchain.pem
+    ulimits:
+      nofile: 33000
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - cert_data:/certs
+      - acme_sh_data:/acme.sh
     depends_on:
       - jsonbin
     links:
@@ -49,3 +52,4 @@ services:
 volumes:
   db_data: {}
   cert_data: {}
+  acme_sh_data: {}
