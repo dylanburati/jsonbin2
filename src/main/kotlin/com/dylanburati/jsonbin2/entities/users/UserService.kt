@@ -5,6 +5,7 @@ import at.favre.lib.crypto.bcrypt.LongPasswordStrategies
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.JWTDecodeException
+import com.auth0.jwt.exceptions.SignatureVerificationException
 import com.dylanburati.jsonbin2.Config
 import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
@@ -132,6 +133,8 @@ class UserService(container: ServiceContainer) : BaseService(container) {
       val id = claim.asString() ?: throw UnauthorizedResponse("Invalid JWT (missing userId)")
       return this.getById(id) ?: throw UnauthorizedResponse("Invalid JWT (deleted userId)")
     } catch (e: JWTDecodeException) {
+      throw UnauthorizedResponse("Invalid JWT")
+    } catch (e: SignatureVerificationException) {
       throw UnauthorizedResponse("Invalid JWT")
     }
   }

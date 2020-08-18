@@ -199,8 +199,6 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
         override fun onComplete(result: Result?) {
           check(result != null && result.response != null) { "Could not execute Google sheets lambda" }
           if (result.response.status == 200) {
-            val out = FileOutputStream("C:/cygwin64/home/dylan/lambda_mock2.json")
-            this.contentAsInputStream.copyTo(out)
             val json = jacksonObjectMapper().readValue<GSheetLambdaData>(
               InputStreamReader(this.contentAsInputStream, UTF_8)
             )
