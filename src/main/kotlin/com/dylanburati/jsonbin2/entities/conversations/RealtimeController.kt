@@ -34,6 +34,7 @@ object RealtimeController {
   )
 
   data class GetMessagesResult(val type: String, val data: List<Message>)
+  data class SetNicknameResult(val type: String, val data: ConversationUser)
 
   fun handleConnect(ctx: WsContext) {
     val convId = ctx.pathParam("conversation-id")
@@ -100,6 +101,17 @@ object RealtimeController {
             data = history
           )
         )
+      }
+      "setNickname" -> {
+        val nick = jacksonObjectMapper()
+          .runCatching { treeToValue<String>(inMessage.data)!! }
+          .getOrElse { error("Could not get nickname") }
+        ConversationController.validateNickname(nick)
+        convUser.nickname = nick
+        services.conversationService.upsertConversationUser(convUser)
+        val active = activeConversations[convUser.conversationId]!!
+        active.broadcast(SetNicknameResult(type = "setNickname", data = convUser))
+        active.handleNicknameChange(convUser)
       }
       else -> {
         activeConversations[convUser.conversationId]!!.handleMessage(

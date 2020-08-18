@@ -64,6 +64,10 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     )
 
     if (nickname != null) convUser.nickname = nickname
+    return upsertConversationUser(convUser)
+  }
+
+  fun upsertConversationUser(convUser: ConversationUser): ConversationUser {
     val rowsAffected = session.run(
       queryOf(
         """

@@ -1,5 +1,7 @@
 plugins {
     kotlin("jvm") version "1.3.72"
+    application
+    id("com.github.johnrengelman.shadow") version "6.0.0"
 }
 
 group = "com.dylanburati"
@@ -29,4 +31,12 @@ tasks {
     compileTestKotlin {
         kotlinOptions.jvmTarget = "1.8"
     }
+    shadowJar {
+        archiveClassifier.set("")
+        archiveVersion.set("")
+    }
+}
+
+application {
+    mainClassName = "com.dylanburati.jsonbin2.MainKt"
 }

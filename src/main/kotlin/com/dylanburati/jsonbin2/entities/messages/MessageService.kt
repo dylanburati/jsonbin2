@@ -9,16 +9,18 @@ import kotliquery.queryOf
 import java.time.Instant
 
 class MessageService(container: ServiceContainer) : BaseService(container) {
-  fun getConversationHistory(conversationId: String): List<Message> {
-    // TODO: filter by target and limit total returned under each
+  fun getConversationHistory(conversationId: String, limit: Int = 1000): List<Message> {
+    require(limit > 0) { "Limit must be positive" }
     val findManyQuery = queryOf("""
       SELECT "message"."id", "sender_id", "sender"."conversation_id", "sender"."user_id",
         "sender"."nickname", "time", "target", "content"
       FROM "message" LEFT JOIN "conversation_user" "sender"
       ON "message"."sender_id" = "sender"."id"
-      WHERE "sender"."conversation_id" = ? ORDER BY "time" ASC
+      WHERE "sender"."conversation_id" = ? ORDER BY "time" DESC
+      LIMIT ?
       """,
-      conversationId
+      conversationId,
+      limit
     )
       .map { row ->
         Message(
@@ -35,7 +37,7 @@ class MessageService(container: ServiceContainer) : BaseService(container) {
         )
       }
       .asList
-    return session.run(findManyQuery)
+    return session.run(findManyQuery).asReversed()
   }
 
   fun save(message: Message) {

@@ -12,4 +12,5 @@ abstract class MessageHandler(val active: ActiveConversation) {
   abstract fun onMessage(convUser: ConversationUser, action: String, data: JsonNode): Boolean
   open fun onUserEnter(convUser: ConversationUser) {}
   open fun onUserExit(convUser: ConversationUser) {}
+  open fun onNicknameChange(convUser: ConversationUser) {}
 }

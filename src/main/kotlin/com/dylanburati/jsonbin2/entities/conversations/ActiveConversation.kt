@@ -52,4 +52,8 @@ class ActiveConversation(val conversation: Conversation) {
         otherCtx.send(message)
       }
   }
+
+  fun handleNicknameChange(convUser: ConversationUser) {
+    for (h in handlers) h.onUserEnter(convUser)
+  }
 }
