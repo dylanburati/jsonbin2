@@ -4,6 +4,7 @@ import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationController
 import com.dylanburati.jsonbin2.entities.conversations.RealtimeController
 import com.dylanburati.jsonbin2.entities.questions.QuestionController
+import com.dylanburati.jsonbin2.entities.remote.imgur.ImgurController
 import com.dylanburati.jsonbin2.entities.users.UserController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
@@ -45,6 +46,11 @@ fun main() {
     before("/guessr/q", authHandler)
     path("/guessr/q") {
       get("refresh", QuestionController::refresh)
+    }
+
+    before("/imgur", authHandler)
+    path("/imgur") {
+      post(ImgurController::upload)
     }
 
     path("/ws") {
@@ -95,13 +101,20 @@ fun main() {
       val message = e.message ?: "Unknown error"
     })
   }
-  app.wsException(BadRequestResponse::class.java, wsBadRequestHandler)
   app.wsException(IllegalArgumentException::class.java, wsBadRequestHandler)
   app.wsException(IllegalStateException::class.java, wsBadRequestHandler)
+  app.wsException(BadRequestResponse::class.java) { e, ctx ->
+    ctx.send(object {
+      val type = "error"
+      val message = e.message ?: "Unknown error"
+    })
+    ctx.session.close()
+  }
   app.wsException(UnauthorizedResponse::class.java) { e, ctx ->
     ctx.send(object {
       val type = "error"
       val message = "Unauthenticated: ${e.message ?: "Unknown error"}"
     })
+    ctx.session.close()
   }
 }

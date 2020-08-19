@@ -5,10 +5,13 @@ import com.dylanburati.jsonbin2.entities.conversations.handlers.GuessrHandler
 import com.fasterxml.jackson.databind.JsonNode
 import io.javalin.websocket.WsCloseContext
 import io.javalin.websocket.WsContext
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 class ActiveConversation(val conversation: Conversation) {
+  private val userInactivityMap = ConcurrentHashMap<String, Instant>()
   val userMap = ConcurrentHashMap<String, AtomicInteger>()
   val sessionMap = ConcurrentHashMap<String, WsContext>()
 
@@ -29,6 +32,7 @@ class ActiveConversation(val conversation: Conversation) {
       v?.apply { incrementAndGet() } ?: AtomicInteger(1)
     }
     if (ct!!.get() == 1) {
+      userInactivityMap.remove(convUser.id)
       for (h in handlers) h.onUserEnter(convUser)
     }
   }
@@ -40,9 +44,24 @@ class ActiveConversation(val conversation: Conversation) {
         v.apply { decrementAndGet() }
       }
       if (ct?.get() == 0) {
+        userInactivityMap[convUser.id] = Instant.now()
         for (h in handlers) h.onUserExit(convUser)
       }
     }
+  }
+
+  fun getActiveConvUserIds(leeway: Duration = Duration.ZERO): Set<String> {
+    val now = Instant.now()
+    val entries = userMap.asSequence().filter { (k, v) ->
+      when {
+        v.get() > 0 -> true
+        leeway <= Duration.ZERO -> false
+        else -> userInactivityMap[k].let { leftAt ->
+          leftAt != null && Duration.between(leftAt, now) < leeway
+        }
+      }
+    }
+    return entries.map { it.key }.toSet()
   }
 
   fun broadcast(message: Any) {

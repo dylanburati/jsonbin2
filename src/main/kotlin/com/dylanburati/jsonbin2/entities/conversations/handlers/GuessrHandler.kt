@@ -11,7 +11,10 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.treeToValue
+import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
@@ -25,7 +28,7 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
   data class GuessrState(
     val convUser: ConversationUser,
     val question: Question.QuestionContent,
-    val activeUserIds: HashSet<String>
+    val answers: HashMap<String, Answer> = HashMap()
   )
 
   data class Answer(val convUser: ConversationUser, val series: List<Point>)
@@ -51,17 +54,12 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
   }
 
   private fun startGame(convUser: ConversationUser, data: JsonNode) {
-    check(state.acquire == null) { "A question is already in progress" }
-
     val dbQuestion = services.questionService.getRandom("LineGraph")
     checkNotNull(dbQuestion) { "No questions found" }
     val question = dbQuestion.getQuestionContent()
-    val activeUserIds = active.userMap.asSequence()
-      .filter { (_, v) -> v.get() > 0 }
-      .map { (k) -> k }
-      .toHashSet()
-    state.set(GuessrState(convUser, question, activeUserIds))
-    answers.clear()
+
+    val success = state.compareAndSet(null, GuessrState(convUser, question))
+    check(success) { "A question is already in progress" }
 
     val startContent = question.copy()
     startContent.data = startContent.data
@@ -88,7 +86,9 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
       .runCatching { treeToValue<SubmitArgs>(data)!! }
       .getOrElse { error("Could not get series data") }
 
-    answers[convUser.id] = Answer(convUser, submission.series)
+    state.updateAndGet { st ->
+      st?.apply { answers[convUser.id] = Answer(convUser, submission.series) }
+    }
     revealIfDone()
   }
 
@@ -104,11 +104,12 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
   private fun revealIfDone() {
     val ongoing = state.acquire ?: return
 
-    val (convUser, question, activeUserIds) = ongoing
-    val totalAtStart = activeUserIds.size
-    val progressFromStart = answers.count { activeUserIds.contains(it.key) }
-    if (progressFromStart < totalAtStart) {
-      val total = totalAtStart + answers.size - progressFromStart
+    val (convUser, question, answers) = ongoing
+    val activeUserIds = active.getActiveConvUserIds(Duration.ofSeconds(5))
+    val totalHere = activeUserIds.size
+    val answeredHere = answers.count { activeUserIds.contains(it.key) }
+    if (answeredHere < totalHere) {
+      val total = totalHere + answers.size - answeredHere
       val msg = services.messageService.send(
         convUser,
         ACTION_PROGRESS,
@@ -125,7 +126,7 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
       return
     }
 
-    if (answers.size == 0 && totalAtStart == 0) {
+    if (totalHere == 0) {
       // no one to reveal to
       cancel(convUser)
     } else {
@@ -152,7 +153,6 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
       active.broadcast(SendMessageResult(type = "message", data = msg))
     }
     state.set(null)
-    answers.clear()
   }
 
   override fun onMessage(convUser: ConversationUser, action: String, data: JsonNode): Boolean {
@@ -165,9 +165,8 @@ class GuessrHandler(active: ActiveConversation) : MessageHandler(active) {
   }
 
   override fun onUserExit(convUser: ConversationUser) {
-    state.updateAndGet { st ->
-      st?.apply { activeUserIds.remove(convUser.id) }
+    CompletableFuture.delayedExecutor(5100L, TimeUnit.MILLISECONDS).execute {
+      revealIfDone()
     }
-    revealIfDone()
   }
 }

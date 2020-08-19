@@ -45,4 +45,13 @@ object Config {
       )
     }
   }
+
+  object Imgur {
+    private val clientId = env["IMGUR_CLIENT_ID"]
+
+    fun getAuthKey(): String {
+      checkNotNull(clientId) { "Imgur credentials missing" }
+      return "Client-ID $clientId"
+    }
+  }
 }
