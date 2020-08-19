@@ -5,7 +5,7 @@ import com.dylanburati.jsonbin2.entities.conversations.ActiveConversation
 import com.dylanburati.jsonbin2.entities.conversations.ConversationUser
 import com.dylanburati.jsonbin2.entities.conversations.MessageHandler
 import com.dylanburati.jsonbin2.entities.conversations.SendMessageResult
-import com.dylanburati.jsonbin2.entities.remote.questions.Question
+import com.dylanburati.jsonbin2.entities.questions.Question
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.JsonNode

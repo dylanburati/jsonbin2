@@ -1,4 +1,4 @@
-package com.dylanburati.jsonbin2.entities.remote.questions
+package com.dylanburati.jsonbin2.entities.questions
 
 import java.time.Instant
 

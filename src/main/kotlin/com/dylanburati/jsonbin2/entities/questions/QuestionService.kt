@@ -1,4 +1,4 @@
-package com.dylanburati.jsonbin2.entities.remote.questions
+package com.dylanburati.jsonbin2.entities.questions
 
 import com.dylanburati.jsonbin2.Config
 import com.dylanburati.jsonbin2.entities.BaseService
@@ -12,7 +12,6 @@ import org.eclipse.jetty.client.api.Result
 import org.eclipse.jetty.client.util.BufferingResponseListener
 import org.eclipse.jetty.util.log.Log
 import org.eclipse.jetty.util.ssl.SslContextFactory
-import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
@@ -28,7 +27,7 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
   )
 
   data class GSheetLambdaError(val message: String?)
-  data class GSheetLambdaData(val data: GSheetLambdaData.Data) {
+  data class GSheetLambdaData(val data: Data) {
     @JsonIgnoreProperties("majorDimension")
     data class ValueRange(val range: String, val values: List<List<String>>)
     data class Data(val spreadsheetId: String, val valueRanges: List<ValueRange>)
@@ -56,11 +55,28 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
   init {
     // todo range
     val lineGraphCols = listOf(
-      GSheetColumn(name = "title", type = GSheetColumnType.STRING, isRequired = true),
-      GSheetColumn(name = "subtitle", type = GSheetColumnType.STRING, isRequired = true),
-      GSheetColumn(name = "randomizeKeyOrder", type = GSheetColumnType.BOOLEAN),
-      GSheetColumn(name = "randomizeKeysUsed", type = GSheetColumnType.BOOLEAN),
-      GSheetColumn(name = "yAxisFormat", type = GSheetColumnType.STRING),
+      GSheetColumn(
+        name = "title",
+        type = GSheetColumnType.STRING,
+        isRequired = true
+      ),
+      GSheetColumn(
+        name = "subtitle",
+        type = GSheetColumnType.STRING,
+        isRequired = true
+      ),
+      GSheetColumn(
+        name = "randomizeKeyOrder",
+        type = GSheetColumnType.BOOLEAN
+      ),
+      GSheetColumn(
+        name = "randomizeKeysUsed",
+        type = GSheetColumnType.BOOLEAN
+      ),
+      GSheetColumn(
+        name = "yAxisFormat",
+        type = GSheetColumnType.STRING
+      ),
       GSheetColumn(
         name = "sourceFormat",
         type = GSheetColumnType.STRING,
@@ -73,7 +89,12 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
         isRequired = true,
         isList = true
       ),
-      GSheetColumn(name = "keys", type = GSheetColumnType.STRING, isRequired = true, isList = true),
+      GSheetColumn(
+        name = "keys",
+        type = GSheetColumnType.STRING,
+        isRequired = true,
+        isList = true
+      ),
       GSheetColumn(
         name = "values",
         type = GSheetColumnType.FLOAT,
@@ -96,20 +117,27 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
           isList = true
         )
       } else {
-        GSheetColumn(name = it.name, type = it.type, isRequired = it.isRequired, isList = it.isList)
+        GSheetColumn(
+          name = it.name,
+          type = it.type,
+          isRequired = it.isRequired,
+          isList = it.isList
+        )
       }
     }.toList()
 
     fun buildGroups(cols: List<GSheetColumn>): List<GSheetColumnGroup> = listOf(
-      GSheetColumnGroup(name = "sources", children = mapOf(
-        (cols.find { it.name == "sourceFormat" } ?: error("")) to "format",
-        (cols.find { it.name == "sourceLinkUrl" } ?: error("")) to "url"
-      )),
-      GSheetColumnGroup(name = "data", children = mapOf(
-        (cols.find { it.name == "keys" } ?: error("")) to "key",
-        (cols.find { it.name == "values" } ?: error("")) to "value",
-        (cols.find { it.name == "moreInfo" } ?: error("")) to "moreInfo"
-      ))
+      GSheetColumnGroup(name = "sources",
+        children = mapOf(
+          (cols.find { it.name == "sourceFormat" } ?: error("")) to "format",
+          (cols.find { it.name == "sourceLinkUrl" } ?: error("")) to "url"
+        )),
+      GSheetColumnGroup(name = "data",
+        children = mapOf(
+          (cols.find { it.name == "keys" } ?: error("")) to "key",
+          (cols.find { it.name == "values" } ?: error("")) to "value",
+          (cols.find { it.name == "moreInfo" } ?: error("")) to "moreInfo"
+        ))
     )
     supportedColumns = mapOf("LineGraph" to lineGraphCols, "Rank" to rankCols)
     supportedColumnGroups = supportedColumns.mapValues { (_, v) -> buildGroups(v) }

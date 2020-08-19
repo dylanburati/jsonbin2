@@ -1,4 +1,4 @@
-package com.dylanburati.jsonbin2.entities.remote.questions
+package com.dylanburati.jsonbin2.entities.questions
 
 import com.dylanburati.jsonbin2.TooManyRequestsResponse
 import com.dylanburati.jsonbin2.entities.ServiceContainer
@@ -30,7 +30,10 @@ object QuestionController {
     ctx.json(
       CompletableFuture.supplyAsync {
         val status = services.questionService.refresh().get()
-        RefreshResult(success = status == 200, lambdaStatus = status)
+        RefreshResult(
+          success = status == 200,
+          lambdaStatus = status
+        )
       }
     )
   }

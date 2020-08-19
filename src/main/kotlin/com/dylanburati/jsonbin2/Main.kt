@@ -3,7 +3,7 @@ package com.dylanburati.jsonbin2
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationController
 import com.dylanburati.jsonbin2.entities.conversations.RealtimeController
-import com.dylanburati.jsonbin2.entities.remote.questions.QuestionController
+import com.dylanburati.jsonbin2.entities.questions.QuestionController
 import com.dylanburati.jsonbin2.entities.users.UserController
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*

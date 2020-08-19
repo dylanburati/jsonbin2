@@ -3,7 +3,7 @@ package com.dylanburati.jsonbin2.entities
 import com.dylanburati.jsonbin2.Config
 import com.dylanburati.jsonbin2.entities.conversations.ConversationService
 import com.dylanburati.jsonbin2.entities.messages.MessageService
-import com.dylanburati.jsonbin2.entities.remote.questions.QuestionService
+import com.dylanburati.jsonbin2.entities.questions.QuestionService
 import com.dylanburati.jsonbin2.entities.users.UserService
 import kotliquery.Session
 import kotliquery.sessionOf

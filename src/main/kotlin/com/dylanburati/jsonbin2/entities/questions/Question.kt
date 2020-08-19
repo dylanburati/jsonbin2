@@ -1,4 +1,4 @@
-package com.dylanburati.jsonbin2.entities.remote.questions
+package com.dylanburati.jsonbin2.entities.questions
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter
 import com.fasterxml.jackson.annotation.JsonAnySetter
@@ -24,7 +24,13 @@ data class Question(
     var extensions: HashMap<String, Any?> = HashMap()
 
     fun copy(): QuestionContent {
-      val other = QuestionContent(title, subtitle, ArrayList(sources), ArrayList(data))
+      val other =
+        QuestionContent(
+          title,
+          subtitle,
+          ArrayList(sources),
+          ArrayList(data)
+        )
       other.extensions.putAll(extensions)
       return other
     }
