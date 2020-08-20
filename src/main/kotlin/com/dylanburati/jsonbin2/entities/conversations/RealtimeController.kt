@@ -17,6 +17,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 object RealtimeController {
+  private const val WS_TIMEOUT_MILLIS = 3600L * 1000
+
   private val logger = Log.getLogger(this::class.java)
   private val taskScheduler = ScheduledThreadPoolExecutor(1)
   private val allSessions = ConcurrentHashMap<String, ConversationUser>()
@@ -37,6 +39,7 @@ object RealtimeController {
   data class SetNicknameResult(val type: String, val data: ConversationUser)
 
   fun handleConnect(ctx: WsContext) {
+    ctx.session.idleTimeout = WS_TIMEOUT_MILLIS
     val convId = ctx.pathParam("conversation-id")
 
     activeConversations.computeIfAbsent(convId) {

@@ -1,0 +1,85 @@
+on:
+  push:
+    branches:
+      - master
+
+name: Deploy to Amazon ECS
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11.0.x
+
+      - name: Configure AWS credentials
+        id: configure-credentials
+        env:
+          AWS_CREDENTIALS: ${{ secrets.AWS_CREDENTIALS }}
+          AWS_REGION: us-east-1
+        run: |
+          mkdir -p ~/.aws
+          echo "$AWS_CREDENTIALS" > ~/.aws/credentials
+          echo "[default]" > ~/.aws/config
+          echo "region = $AWS_REGION" >> ~/.aws/config
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image 'haproxy' to Amazon ECR
+        id: build-image-haproxy
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: jsonbin2-haproxy
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./docker/haproxy
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Build, tag, and push image 'jsonbin' to Amazon ECR
+        id: build-image-jsonbin
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: jsonbin2
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          ./gradlew build
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Fill in the first image ID in the Amazon ECS task definition
+        id: task-def-haproxy
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: haproxy
+          image: ${{ steps.build-image-haproxy.outputs.image }}
+
+      - name: Fill in the second image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-haproxy.outputs.task-definition }}
+          container-name: jsonbin
+          image: ${{ steps.build-image-jsonbin.outputs.image }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: jsonbin2
+          cluster: ec2-jsonbin
+          wait-for-service-stability: true
