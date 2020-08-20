@@ -1,0 +1,260 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "haproxy",
+      "image": "",
+      "cpu": 0,
+      "memory": 512,
+      "links": ["jsonbin"],
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 80,
+          "protocol": "tcp"
+        },
+        {
+          "containerPort": 443,
+          "hostPort": 443,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "entryPoint": [],
+      "command": [],
+      "environment": [
+        {
+          "name": "FULLCHAIN",
+          "value": "/certs/fullchain.pem"
+        },
+        {
+          "name": "DOMAINS",
+          "value": "datagame.live www.datagame.live blog.datagame.live"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "cert_data",
+          "containerPath": "/certs",
+          "readOnly": false
+        },
+        {
+          "sourceVolume": "acme_sh_data",
+          "containerPath": "/acme.sh",
+          "readOnly": false
+        }
+      ],
+      "volumesFrom": [],
+      "linuxParameters": {
+        "capabilities": {},
+        "devices": []
+      },
+      "privileged": false,
+      "readonlyRootFilesystem": false,
+      "dnsServers": [],
+      "dnsSearchDomains": [],
+      "extraHosts": [],
+      "dockerSecurityOptions": [],
+      "pseudoTerminal": false,
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 33000,
+          "hardLimit": 33000
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ec2-jsonbin",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "haproxy"
+        }
+      }
+    },
+    {
+      "name": "jsonbin",
+      "image": "",
+      "cpu": 0,
+      "memory": 1536,
+      "links": ["postgresql"],
+      "portMappings": [
+        {
+          "containerPort": 7000,
+          "hostPort": 7000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "entryPoint": [],
+      "command": [],
+      "environment": [
+        {
+          "name": "POSTGRES_USER",
+          "value": "jsonbin"
+        },
+        {
+          "name": "POSTGRES_HOST",
+          "value": "postgresql"
+        },
+        {
+          "name": "GSHEETS_FILE_ID",
+          "value": "1ewSz4Y8Cr4akRsP49JqcT_PU4Mwjck7uZjDf6qfulTM"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "linuxParameters": {
+        "capabilities": {},
+        "devices": []
+      },
+      "secrets": [
+        {
+          "name": "POSTGRES_PASSWORD",
+          "valueFrom": "/ec2/jsonbin2/postgres-password"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "/ec2/jsonbin2/jwt-secret"
+        },
+        {
+          "name": "GSHEETS_LAMBDA_API_KEY",
+          "valueFrom": "/lambda/read-google-sheet/api-key"
+        },
+        {
+          "name": "GSHEETS_LAMBDA_ENDPOINT",
+          "valueFrom": "/lambda/read-google-sheet/endpoint"
+        }
+      ],
+      "privileged": false,
+      "readonlyRootFilesystem": false,
+      "dnsServers": [],
+      "dnsSearchDomains": [],
+      "extraHosts": [],
+      "dockerSecurityOptions": [],
+      "pseudoTerminal": false,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ec2-jsonbin",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "jsonbin"
+        }
+      }
+    },
+    {
+      "name": "postgresql",
+      "image": "postgres:12.3",
+      "cpu": 0,
+      "memory": 1024,
+      "links": [],
+      "portMappings": [
+        {
+          "containerPort": 5432,
+          "hostPort": 5432,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "entryPoint": [],
+      "command": [],
+      "environment": [
+        {
+          "name": "POSTGRES_USER",
+          "value": "jsonbin"
+        },
+        {
+          "name": "POSTGRES_DB",
+          "value": "jsonbin"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "db_data",
+          "containerPath": "/var/lib/postgresql/data",
+          "readOnly": false
+        }
+      ],
+      "volumesFrom": [],
+      "linuxParameters": {
+        "capabilities": {},
+        "devices": []
+      },
+      "secrets": [
+        {
+          "name": "POSTGRES_PASSWORD",
+          "valueFrom": "/ec2/jsonbin2/postgres-password"
+        }
+      ],
+      "privileged": false,
+      "readonlyRootFilesystem": false,
+      "dnsServers": [],
+      "dnsSearchDomains": [],
+      "extraHosts": [],
+      "dockerSecurityOptions": [],
+      "pseudoTerminal": false
+    }
+  ],
+  "family": "jsonbin2",
+  "executionRoleArn": "ecsTaskExecutionRole",
+  "revision": 19,
+  "volumes": [
+    {
+      "name": "db_data",
+      "dockerVolumeConfiguration": {
+        "scope": "shared",
+        "autoprovision": true,
+        "driver": "local"
+      }
+    },
+    {
+      "name": "cert_data",
+      "dockerVolumeConfiguration": {
+        "scope": "shared",
+        "autoprovision": true,
+        "driver": "local"
+      }
+    },
+    {
+      "name": "acme_sh_data",
+      "dockerVolumeConfiguration": {
+        "scope": "shared",
+        "autoprovision": true,
+        "driver": "local"
+      }
+    }
+  ],
+  "requiresAttributes": [
+    {
+      "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+    },
+    {
+      "name": "ecs.capability.execution-role-awslogs"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.ecr-auth"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.17"
+    },
+    {
+      "name": "ecs.capability.docker-plugin.local"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.25"
+    },
+    {
+      "name": "ecs.capability.execution-role-ecr-pull"
+    },
+    {
+      "name": "ecs.capability.secrets.ssm.environment-variables"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+    }
+  ],
+  "placementConstraints": [],
+  "compatibilities": ["EC2"]
+}
