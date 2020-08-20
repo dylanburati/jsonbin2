@@ -2,8 +2,6 @@
 .env
 .gradle
 /rsync.sh
-/ecs-docker-compose.yml
-/ecs-params.yml
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

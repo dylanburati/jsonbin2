@@ -5,7 +5,6 @@
       "image": "",
       "cpu": 0,
       "memory": 512,
-      "links": ["jsonbin"],
       "portMappings": [
         {
           "containerPort": 80,
@@ -22,6 +21,10 @@
       "entryPoint": [],
       "command": [],
       "environment": [
+        {
+          "name": "UPSTREAM",
+          "value": "localhost:7000"
+        },
         {
           "name": "FULLCHAIN",
           "value": "/certs/fullchain.pem"
@@ -76,7 +79,6 @@
       "image": "",
       "cpu": 0,
       "memory": 1536,
-      "links": ["postgresql"],
       "portMappings": [
         {
           "containerPort": 7000,
@@ -94,7 +96,7 @@
         },
         {
           "name": "POSTGRES_HOST",
-          "value": "postgresql"
+          "value": "localhost"
         },
         {
           "name": "GSHEETS_FILE_ID",
@@ -196,7 +198,7 @@
   ],
   "family": "jsonbin2",
   "executionRoleArn": "ecsTaskExecutionRole",
-  "revision": 19,
+  "networkMode": "awsvpc",
   "volumes": [
     {
       "name": "db_data",
@@ -222,39 +224,5 @@
         "driver": "local"
       }
     }
-  ],
-  "requiresAttributes": [
-    {
-      "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
-    },
-    {
-      "name": "ecs.capability.execution-role-awslogs"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.ecr-auth"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.17"
-    },
-    {
-      "name": "ecs.capability.docker-plugin.local"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.25"
-    },
-    {
-      "name": "ecs.capability.execution-role-ecr-pull"
-    },
-    {
-      "name": "ecs.capability.secrets.ssm.environment-variables"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
-    }
-  ],
-  "placementConstraints": [],
-  "compatibilities": ["EC2"]
+  ]
 }

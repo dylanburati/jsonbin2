@@ -4,6 +4,7 @@ services:
   haproxy:
     build: ./docker/haproxy
     environment:
+      UPSTREAM: jsonbin:7000
       DOMAINS: datagame.live www.datagame.live blog.datagame.live
       FULLCHAIN: /certs/fullchain.pem
     ulimits:
@@ -12,11 +13,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - cert_data:/certs
-      - acme_sh_data:/acme.sh
+      - ~/local-certs:/certs
     depends_on:
-      - jsonbin
-    links:
       - jsonbin
 
   jsonbin:
@@ -34,8 +32,6 @@ services:
       - "7000:7000"
     depends_on:
       - postgresql
-    links:
-      - postgresql
 
   postgresql:
     image: postgres:12.3
@@ -51,5 +47,3 @@ services:
 
 volumes:
   db_data: {}
-  cert_data: {}
-  acme_sh_data: {}

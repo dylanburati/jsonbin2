@@ -1,15 +1,28 @@
 #!/bin/sh
+if [ -z "$UPSTREAM" ]; then
+  echo 'Error: Upstream server URI not provided'
+  exit 1
+fi
+
+if echo "$UPSTREAM" | grep -F '#'; then
+  echo "Error: Upstream server URI can not contain '#'"
+  exit 1
+fi
+
+sed -i "s#{{ UPSTREAM }}#$UPSTREAM#" /usr/local/etc/haproxy/haproxy.cfg
+
 if [ ! -f "$FULLCHAIN" ]; then
-  PRIMARY="$(echo "$DOMAINS" | cut -d' ' -f1)"
+  PRIMARY="$(echo "$DOMAINS" | cut -d" ' -f1)"
   DOMAIN_ARGS=""
   IFS=' '
+  [ "$ACME_HTTPS_INSECURE" = "1" ] && PEBBLE_ARGS="--insecure"
   for DN in $DOMAINS; do
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DN";
   done
 
   trap 'echo bootstrap: received hangup' HUP
   socat TCP-LISTEN:80,reuseaddr,fork TCP:localhost:88 &
-  acme.sh --issue --standalone $DOMAIN_ARGS --httpport 88 || exit 1
+  acme.sh --issue --standalone $DOMAIN_ARGS $PEBBLE_ARGS --httpport 88 || exit 1
   kill %1
   echo 'bootstrap: killed socat'
   while netstat -tln | grep '0.0.0.0:80'; do
