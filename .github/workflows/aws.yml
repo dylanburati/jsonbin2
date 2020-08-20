@@ -29,6 +29,7 @@ jobs:
           echo "$AWS_CREDENTIALS" > ~/.aws/credentials
           echo "[default]" > ~/.aws/config
           echo "region = $AWS_REGION" >> ~/.aws/config
+          echo "::set-env name=AWS_REGION::$AWS_REGION"
 
       - name: Login to Amazon ECR
         id: login-ecr
