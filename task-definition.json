@@ -5,6 +5,7 @@
       "image": "",
       "cpu": 0,
       "memory": 512,
+      "links": ["jsonbin"],
       "portMappings": [
         {
           "containerPort": 80,
@@ -23,7 +24,7 @@
       "environment": [
         {
           "name": "UPSTREAM",
-          "value": "localhost:7000"
+          "value": "jsonbin:7000"
         },
         {
           "name": "FULLCHAIN",
@@ -79,6 +80,7 @@
       "image": "",
       "cpu": 0,
       "memory": 1536,
+      "links": ["postgresql"],
       "portMappings": [
         {
           "containerPort": 7000,
@@ -96,7 +98,7 @@
         },
         {
           "name": "POSTGRES_HOST",
-          "value": "localhost"
+          "value": "postgresql"
         },
         {
           "name": "GSHEETS_FILE_ID",
@@ -198,7 +200,6 @@
   ],
   "family": "jsonbin2",
   "executionRoleArn": "ecsTaskExecutionRole",
-  "networkMode": "awsvpc",
   "volumes": [
     {
       "name": "db_data",
