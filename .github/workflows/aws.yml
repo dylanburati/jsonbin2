@@ -3,12 +3,13 @@ on:
     branches:
       - master
 
-name: Deploy to Amazon ECS
+name: Push to ECS
 
 jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
 
     steps:
       - name: Checkout
