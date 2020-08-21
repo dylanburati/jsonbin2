@@ -83,5 +83,5 @@ jobs:
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: jsonbin2
-          cluster: ec2-jsonbin
+          cluster: dev
           wait-for-service-stability: true
