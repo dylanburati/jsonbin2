@@ -8,5 +8,5 @@ Built with:
 (SSL support lets Javalin just use HTTP)
 - [acme.sh](https://github.com/acmesh-official/acme.sh) - To issue and renew SSL certificates from Let's Encrypt
 
-Hosted using AWS Elastic Container Service
-| ![Deploy status](https://github.com/dylanburati/jsonbin2/workflows/Push%20to%20ECS/badge.svg)
+Hosted using AWS Elastic Container Service \
+![Deploy status](https://github.com/dylanburati/jsonbin2/workflows/Push%20to%20ECS/badge.svg)
