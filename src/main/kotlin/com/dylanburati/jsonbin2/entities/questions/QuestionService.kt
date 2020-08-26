@@ -243,8 +243,12 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
               save(q)
             }
           } else {
-            val json = jacksonObjectMapper().readValue<GSheetLambdaError>(this.contentAsInputStream)
-            logger.warn("Refresh Error: ${json.message}")
+            var message = jacksonObjectMapper().runCatching {
+              val json = readValue<GSheetLambdaError>(contentAsInputStream)
+              json.message
+            }.getOrNull()
+            message = message ?: result.failure?.message ?: "Unknown error"
+            logger.warn("Refresh Error: $message")
           }
           promise.complete(result.response?.status)
         }
