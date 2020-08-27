@@ -17,8 +17,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 object RealtimeController {
-  private const val WS_TIMEOUT_MILLIS = 3600L * 1000
-
   private val logger = Log.getLogger(this::class.java)
   private val taskScheduler = ScheduledThreadPoolExecutor(1)
   private val allSessions = ConcurrentHashMap<String, ConversationUser>()
@@ -39,7 +37,6 @@ object RealtimeController {
 
   fun handleConnect(ctx: WsContext) {
     val services = ctx.attribute<ServiceContainer>("services")!!
-    ctx.session.idleTimeout = WS_TIMEOUT_MILLIS
     val convId = ctx.pathParam("conversation-id")
 
     activeConversations.computeIfAbsent(convId) {
@@ -141,7 +138,9 @@ object RealtimeController {
   private fun scheduleUnloadConversation(conversationId: String) {
     taskScheduler.schedule(
       {
-        if (activeConversations[conversationId]?.sessionMap?.isEmpty() == true) {
+        val active = activeConversations[conversationId]
+        if (active != null && active.sessionMap.isEmpty()) {
+          active.close()
           activeConversations.remove(conversationId)
           logger.info("Unloaded conversation $conversationId")
         }

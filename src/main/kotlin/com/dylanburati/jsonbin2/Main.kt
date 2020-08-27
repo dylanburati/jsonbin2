@@ -12,6 +12,7 @@ import io.javalin.http.*
 import io.javalin.websocket.WsExceptionHandler
 
 fun main() {
+  ServiceContainer.configure()
   val app = Javalin.create { config ->
     config.enableCorsForAllOrigins()
   }.start(7000)
@@ -26,7 +27,10 @@ fun main() {
   app.wsBefore { ws ->
     ws.onConnect { ctx ->
       ctx.attribute("services", ServiceContainer())
+      ctx.session.idleTimeout = 60L * 1000
     }
+  }
+  app.wsAfter { ws ->
     ws.onClose { ctx ->
       val services = ctx.attribute<ServiceContainer>("services")
       services?.close()
