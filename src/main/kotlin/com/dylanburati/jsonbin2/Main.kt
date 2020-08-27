@@ -27,7 +27,7 @@ fun main() {
   app.wsBefore { ws ->
     ws.onConnect { ctx ->
       ctx.attribute("services", ServiceContainer())
-      ctx.session.idleTimeout = 60L * 1000
+      ctx.session.idleTimeout = 3600L * 1000
     }
   }
   app.wsAfter { ws ->
