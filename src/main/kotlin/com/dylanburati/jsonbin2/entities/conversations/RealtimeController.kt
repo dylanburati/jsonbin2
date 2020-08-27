@@ -23,7 +23,6 @@ object RealtimeController {
   private val taskScheduler = ScheduledThreadPoolExecutor(1)
   private val allSessions = ConcurrentHashMap<String, ConversationUser>()
   private val activeConversations = ConcurrentHashMap<String, ActiveConversation>()
-  private val services = ServiceContainer
 
   data class MessageArgs(val action: String?, val data: JsonNode)
   data class LoginArgs(val token: String?)
@@ -39,6 +38,7 @@ object RealtimeController {
   data class SetNicknameResult(val type: String, val data: ConversationUser)
 
   fun handleConnect(ctx: WsContext) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     ctx.session.idleTimeout = WS_TIMEOUT_MILLIS
     val convId = ctx.pathParam("conversation-id")
 
@@ -51,6 +51,7 @@ object RealtimeController {
   }
 
   private fun handleLoginMessage(ctx: WsMessageContext, args: LoginArgs) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val convId = ctx.pathParam("conversation-id")
 
     if (args.token == null) throw UnauthorizedResponse("Missing JWT")
@@ -82,6 +83,7 @@ object RealtimeController {
   }
 
   fun handleMessage(ctx: WsMessageContext) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val inMessage = ctx.message<MessageArgs>()
     check(inMessage.action != null) { "Action is required" }
 

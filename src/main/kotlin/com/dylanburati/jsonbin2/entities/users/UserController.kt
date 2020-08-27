@@ -6,7 +6,6 @@ import org.eclipse.jetty.util.log.Log
 
 object UserController {
   private val logger = Log.getLogger(this::class.java)
-  private val services = ServiceContainer
 
   data class CreateUserArgs(
     val isGuest: Boolean = false,
@@ -29,6 +28,7 @@ object UserController {
   )
 
   fun createUser(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val args = ctx.body<CreateUserArgs>()
     if (args.isGuest) {
       check(args.username.isEmpty() && args.password.isEmpty()) { "Guest user can not specify username or password" }
@@ -55,6 +55,7 @@ object UserController {
   }
 
   fun login(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val args = ctx.body<LoginArgs>()
 
     val user = services.userService.authenticateUser(args.username, args.password)

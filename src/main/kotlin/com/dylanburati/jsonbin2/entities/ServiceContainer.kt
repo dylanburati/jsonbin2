@@ -6,19 +6,21 @@ import com.dylanburati.jsonbin2.entities.messages.MessageService
 import com.dylanburati.jsonbin2.entities.questions.QuestionService
 import com.dylanburati.jsonbin2.entities.remote.imgur.ImgurService
 import com.dylanburati.jsonbin2.entities.users.UserService
-import kotliquery.Session
+import kotliquery.HikariCP
 import kotliquery.sessionOf
 import org.flywaydb.core.Flyway
 
-object ServiceContainer {
-  private fun initSession(): Session {
-    return Config.Database.run {
-      Flyway.configure().dataSource(url, user, password).load().migrate()
-      sessionOf(url, user, password)
+class ServiceContainer {
+  companion object {
+    init {
+      Config.Database.run {
+        Flyway.configure().dataSource(url, user, password).load().migrate()
+        HikariCP.default(url, user, password)
+      }
     }
   }
 
-  val session = this.initSession()
+  val session = sessionOf(HikariCP.dataSource())
   val userService = UserService(this)
   val conversationService = ConversationService(this)
   val messageService = MessageService(this)
@@ -29,4 +31,8 @@ object ServiceContainer {
   // App: guessr
   val questionService =
     QuestionService(this)
+
+  fun close() {
+    session.close()
+  }
 }

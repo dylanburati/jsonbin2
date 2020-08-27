@@ -18,6 +18,7 @@ dependencies {
     implementation("org.slf4j:slf4j-simple:1.8.0-beta4")
     runtimeOnly("org.postgresql:postgresql:42.2.14")
     implementation("com.github.seratch:kotliquery:1.3.1")
+    implementation("com.zaxxer:HikariCP:3.3.1")
     implementation("org.flywaydb:flyway-core:6.5.3")
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("io.github.cdimascio:java-dotenv:5.2.1")
