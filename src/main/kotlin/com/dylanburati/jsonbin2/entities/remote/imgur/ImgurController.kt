@@ -5,14 +5,13 @@ import io.javalin.http.Context
 import java.util.concurrent.CompletableFuture
 
 object ImgurController {
-  private val services = ServiceContainer
-
   data class UploadResult(
     val success: Boolean,
     val data: List<ImgurAsset>
   )
 
   fun upload(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     check(ctx.isMultipartFormData()) { "Upload must be multipart/form-data" }
     val files = ctx.uploadedFiles("attachments")
     check(files.size in 1..12) { "Upload must contain 1-12 attachments. Found ${files.size}" }

@@ -17,13 +17,10 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 object RealtimeController {
-  private const val WS_TIMEOUT_MILLIS = 3600L * 1000
-
   private val logger = Log.getLogger(this::class.java)
   private val taskScheduler = ScheduledThreadPoolExecutor(1)
   private val allSessions = ConcurrentHashMap<String, ConversationUser>()
   private val activeConversations = ConcurrentHashMap<String, ActiveConversation>()
-  private val services = ServiceContainer
 
   data class MessageArgs(val action: String?, val data: JsonNode)
   data class LoginArgs(val token: String?)
@@ -39,7 +36,7 @@ object RealtimeController {
   data class SetNicknameResult(val type: String, val data: ConversationUser)
 
   fun handleConnect(ctx: WsContext) {
-    ctx.session.idleTimeout = WS_TIMEOUT_MILLIS
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val convId = ctx.pathParam("conversation-id")
 
     activeConversations.computeIfAbsent(convId) {
@@ -51,6 +48,7 @@ object RealtimeController {
   }
 
   private fun handleLoginMessage(ctx: WsMessageContext, args: LoginArgs) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val convId = ctx.pathParam("conversation-id")
 
     if (args.token == null) throw UnauthorizedResponse("Missing JWT")
@@ -82,6 +80,7 @@ object RealtimeController {
   }
 
   fun handleMessage(ctx: WsMessageContext) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val inMessage = ctx.message<MessageArgs>()
     check(inMessage.action != null) { "Action is required" }
 
@@ -139,7 +138,9 @@ object RealtimeController {
   private fun scheduleUnloadConversation(conversationId: String) {
     taskScheduler.schedule(
       {
-        if (activeConversations[conversationId]?.sessionMap?.isEmpty() == true) {
+        val active = activeConversations[conversationId]
+        if (active != null && active.sessionMap.isEmpty()) {
+          active.close()
           activeConversations.remove(conversationId)
           logger.info("Unloaded conversation $conversationId")
         }

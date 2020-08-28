@@ -8,14 +8,13 @@ import java.time.Instant
 import java.util.concurrent.CompletableFuture
 
 object QuestionController {
-  private val services = ServiceContainer
-
   data class RefreshResult(
     val success: Boolean,
     val lambdaStatus: Int
   )
 
   fun refresh(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val last = services.questionService.getMostRecentSource()
     if (last != null) {
       val elapsedWait = Duration.between(last.createdAt, Instant.now())

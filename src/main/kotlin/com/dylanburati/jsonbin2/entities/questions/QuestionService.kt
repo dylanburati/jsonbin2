@@ -17,6 +17,10 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 
 class QuestionService(container: ServiceContainer) : BaseService(container) {
   private val logger = Log.getLogger(QuestionService::class.java)
@@ -243,8 +247,12 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
               save(q)
             }
           } else {
-            val json = jacksonObjectMapper().readValue<GSheetLambdaError>(this.contentAsInputStream)
-            logger.warn("Refresh Error: ${json.message}")
+            var message = jacksonObjectMapper().runCatching {
+              val json = readValue<GSheetLambdaError>(contentAsInputStream)
+              json.message
+            }.getOrNull()
+            message = message ?: result.failure?.message ?: "Unknown error"
+            logger.warn("Refresh Error: $message")
           }
           promise.complete(result.response?.status)
         }
@@ -331,18 +339,47 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
         }
       }
 
+      val processed = postProcessQuestionData(type, rowGroupJson)
       questions.add(
         Question(
           id = generateId(),
           sourceId = "",
           type = type,
-          data = jacksonObjectMapper().valueToTree(rowGroupJson)
+          data = jacksonObjectMapper().valueToTree(processed)
         )
       )
       startRow += rowGroup.size
     }
 
     return questions
+  }
+
+  fun postProcessQuestionData(type: String, json: HashMap<String, Any>): HashMap<String, Any> {
+    if (type == "LineGraph") {
+      val needsMin = !json.containsKey("yMin")
+      val needsMax = !json.containsKey("yMax")
+      if (needsMin || needsMax) {
+        val data = when (val dataRef = json["data"]) {
+          is List<*> -> dataRef
+          else -> null
+        }
+        if (data != null) {
+          val dataSeq = data.asSequence().mapNotNull { row ->
+            when {
+              row is HashMap<*, *> && row["value"] is Float -> row["value"] as Float
+              else -> null
+            }
+          }
+          val dataMin = dataSeq.min() ?: error("LineGraph processing can't find any data points")
+          val dataMax = dataSeq.max() ?: error("LineGraph processing can't find any data points")
+          val range = if (dataMin == dataMax) 1f else (dataMax - dataMin)
+          val precision = 10.0f.pow(ceil(log10(range)) - 1)
+          if (needsMin) json["yMin"] = floor(dataMin / precision) * precision
+          if (needsMax) json["yMax"] = ceil(dataMax / precision) * precision
+        }
+      }
+    }
+    return json
   }
 
   private fun convertSheetToQuestions(sheet: GSheetLambdaData.Data): ColumnConversionResult {

@@ -6,8 +6,6 @@ import com.dylanburati.jsonbin2.entities.users.User
 import io.javalin.http.Context
 
 object ConversationController {
-  private val services = ServiceContainer
-
   data class CreateConversationArgs(val title: String = "", val nickname: String = "")
   data class CreateConversationResult(
     val success: Boolean,
@@ -34,6 +32,7 @@ object ConversationController {
   }
 
   fun createConversation(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val args = ctx.body<CreateConversationArgs>()
     validateTitle(args.title)
     validateNickname(args.nickname)
@@ -51,6 +50,7 @@ object ConversationController {
   }
 
   fun listConversations(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
     val user = ctx.attribute<User>("user")!!
     val conversations = services.conversationService.getUserConversations(user.id)
     val result = conversations.map { convUser ->

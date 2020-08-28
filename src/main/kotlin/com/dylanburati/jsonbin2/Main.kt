@@ -12,14 +12,36 @@ import io.javalin.http.*
 import io.javalin.websocket.WsExceptionHandler
 
 fun main() {
+  ServiceContainer.configure()
   val app = Javalin.create { config ->
     config.enableCorsForAllOrigins()
   }.start(7000)
 
+  app.before { ctx ->
+    ctx.attribute("services", ServiceContainer())
+  }
+  app.after { ctx ->
+    val services = ctx.attribute<ServiceContainer>("services")
+    services?.close()
+  }
+  app.wsBefore { ws ->
+    ws.onConnect { ctx ->
+      ctx.attribute("services", ServiceContainer())
+      ctx.session.idleTimeout = 3600L * 1000
+    }
+  }
+  app.wsAfter { ws ->
+    ws.onClose { ctx ->
+      val services = ctx.attribute<ServiceContainer>("services")
+      services?.close()
+    }
+  }
+
   val authHandler = Handler { ctx ->
+    val services = ctx.attribute<ServiceContainer>("services")!!
     if (ctx.method() != "OPTIONS") {
       val token = ctx.header(Config.JWT.headerKey) ?: throw UnauthorizedResponse("Missing JWT")
-      ctx.attribute("user", ServiceContainer.userService.verifyJWT(token))
+      ctx.attribute("user", services.userService.verifyJWT(token))
     }
   }
 
