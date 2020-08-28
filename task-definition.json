@@ -127,6 +127,10 @@
         {
           "name": "GSHEETS_LAMBDA_ENDPOINT",
           "valueFrom": "/lambda/read-google-sheet/endpoint"
+        },
+        {
+          "name": "IMGUR_CLIENT_ID",
+          "valueFrom": "/imgur/credentials/client-id"
         }
       ],
       "privileged": false,
