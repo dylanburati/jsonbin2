@@ -78,8 +78,12 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
         type = GSheetColumnType.BOOLEAN
       ),
       GSheetColumn(
-        name = "yAxisFormat",
-        type = GSheetColumnType.STRING
+        name = "yMin",
+        type = GSheetColumnType.FLOAT
+      ),
+      GSheetColumn(
+        name = "yMax",
+        type = GSheetColumnType.FLOAT
       ),
       GSheetColumn(
         name = "sourceFormat",
@@ -112,7 +116,7 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
         isList = true
       )
     )
-    val rankCols = lineGraphCols.asSequence().filter { it.name != "yAxisFormat" }.map {
+    val rankCols = lineGraphCols.asSequence().filter { it.name !in listOf("yMin", "yMax") }.map {
       if (it.name == "values") {
         GSheetColumn(
           name = "values",
@@ -288,7 +292,7 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
     var startRow = 1
     while (startRow < vr.values.size) {
       val rest = vr.values.drop(startRow)
-      val rowGroup = rest.takeLastWhile { row ->
+      val rowGroup = rest.takeWhile { row ->
         row == rest.first() || row.isEmpty() || row[0].isBlank()
       }
       val rowGroupJson = HashMap<String, Any>()
