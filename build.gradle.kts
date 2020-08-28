@@ -23,6 +23,9 @@ dependencies {
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("io.github.cdimascio:java-dotenv:5.2.1")
     implementation("com.auth0:java-jwt:3.10.3")
+    testImplementation(platform("org.junit:junit-bom:5.6.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0")
 }
 
 tasks {
@@ -31,6 +34,9 @@ tasks {
     }
     compileTestKotlin {
         kotlinOptions.jvmTarget = "1.8"
+    }
+    test {
+        useJUnitPlatform()
     }
     shadowJar {
         archiveClassifier.set("")
