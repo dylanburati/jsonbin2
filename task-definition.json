@@ -4,7 +4,7 @@
       "name": "haproxy",
       "image": "",
       "cpu": 0,
-      "memory": 512,
+      "memory": 128,
       "links": ["jsonbin"],
       "portMappings": [
         {
@@ -79,7 +79,7 @@
       "name": "jsonbin",
       "image": "",
       "cpu": 0,
-      "memory": 1536,
+      "memory": 512,
       "links": ["postgresql"],
       "portMappings": [
         {
@@ -153,7 +153,7 @@
       "name": "postgresql",
       "image": "postgres:12.3",
       "cpu": 0,
-      "memory": 1024,
+      "memory": 256,
       "links": [],
       "portMappings": [
         {

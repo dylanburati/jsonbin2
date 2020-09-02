@@ -7,6 +7,10 @@ services:
       UPSTREAM: jsonbin:7000
       DOMAINS: datagame.live www.datagame.live blog.datagame.live
       FULLCHAIN: /certs/fullchain.pem
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     ulimits:
       nofile: 33000
     ports:
@@ -28,6 +32,10 @@ services:
       GSHEETS_LAMBDA_API_KEY:
       GSHEETS_LAMBDA_ENDPOINT:
       GSHEETS_FILE_ID:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     ports:
       - "7000:7000"
     depends_on:
@@ -40,6 +48,10 @@ services:
       POSTGRES_DB: jsonbin
       POSTGRES_USER:
       POSTGRES_PASSWORD:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     ports:
       - "5432:5432"
     volumes:
