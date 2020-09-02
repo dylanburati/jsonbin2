@@ -6,7 +6,12 @@ import com.dylanburati.jsonbin2.entities.users.User
 import io.javalin.http.Context
 
 object ConversationController {
-  data class CreateConversationArgs(val title: String = "", val nickname: String = "")
+  data class CreateConversationArgs(
+    val title: String = "",
+    val nickname: String = "",
+    val tags: List<String> = listOf()
+  )
+
   data class CreateConversationResult(
     val success: Boolean,
     val title: String,
@@ -31,14 +36,21 @@ object ConversationController {
     check(nickname.isNotBlank()) { "Username can not be all spaces" }
   }
 
+  fun validateTag(tag: String) {
+    check(tag.length in 2..63) { "Tag must be 2-63 characters" }
+    check(!tag.contains(Regex("\\v"))) { "Tag can not contain special characters" }
+    check(tag.isNotBlank()) { "Tag can not be all spaces" }
+  }
+
   fun createConversation(ctx: Context) {
     val services = ctx.attribute<ServiceContainer>("services")!!
     val args = ctx.body<CreateConversationArgs>()
     validateTitle(args.title)
     validateNickname(args.nickname)
+    args.tags.forEach { validateTag(it) }
 
     val user = ctx.attribute<User>("user")!!
-    val conv = services.conversationService.createConversation(user, args.title, args.nickname)
+    val conv = services.conversationService.createConversation(user, args)
     ctx.json(
       CreateConversationResult(
         success = true,
@@ -49,18 +61,28 @@ object ConversationController {
     )
   }
 
-  fun listConversations(ctx: Context) {
+  private fun listConversations(ctx: Context, tag: String?) {
     val services = ctx.attribute<ServiceContainer>("services")!!
     val user = ctx.attribute<User>("user")!!
     val conversations = services.conversationService.getUserConversations(user.id)
-    val result = conversations.map { convUser ->
+    val result = conversations.mapNotNull { convUser ->
       val conv = convUser.conversation
       checkNotNull(conv) { "Expected relation to be loaded" }
-      JsonExtended(conv).also { obj ->
-        obj.extensions["nickname"] = convUser.nickname
-      }
+      if (tag == null || conv.tags.contains(tag)) {
+        JsonExtended(conv).also { obj ->
+          obj.extensions["nickname"] = convUser.nickname
+        }
+      } else null
     }
 
     ctx.json(ListConversationsResult(success = true, conversations = result))
+  }
+
+  fun listConversations(ctx: Context) {
+    return listConversations(ctx, null)
+  }
+
+  fun listConversationsWithTag(ctx: Context) {
+    return listConversations(ctx, ctx.pathParam("tag"))
   }
 }

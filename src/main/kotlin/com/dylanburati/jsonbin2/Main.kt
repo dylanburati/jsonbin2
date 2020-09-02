@@ -60,8 +60,10 @@ fun main() {
     }
 
     before("/g", authHandler)
+    before("/g/*", authHandler)
     path("/g") {
       get(ConversationController::listConversations)
+      get(":tag", ConversationController::listConversationsWithTag)
       post(ConversationController::createConversation)
     }
 
