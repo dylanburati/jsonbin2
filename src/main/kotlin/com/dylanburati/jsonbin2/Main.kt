@@ -65,6 +65,7 @@ fun main() {
       get(ConversationController::listConversations)
       get(":tag", ConversationController::listConversationsWithTag)
       post(ConversationController::createConversation)
+      delete(ConversationController::deleteConversations)
     }
 
     before("/guessr/q", authHandler)

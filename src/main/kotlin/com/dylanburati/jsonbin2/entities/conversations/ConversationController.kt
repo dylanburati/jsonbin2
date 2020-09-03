@@ -12,6 +12,10 @@ object ConversationController {
     val tags: List<String> = listOf()
   )
 
+  data class DeleteConversationsArgs(
+    val ids: List<String>
+  )
+
   data class CreateConversationResult(
     val success: Boolean,
     val title: String,
@@ -22,6 +26,10 @@ object ConversationController {
   data class ListConversationsResult(
     val success: Boolean,
     val conversations: List<JsonExtended<Conversation>>
+  )
+
+  data class DeleteConversationsResult(
+    val success: Boolean
   )
 
   fun validateTitle(title: String) {
@@ -84,5 +92,14 @@ object ConversationController {
 
   fun listConversationsWithTag(ctx: Context) {
     return listConversations(ctx, ctx.pathParam("tag"))
+  }
+
+  fun deleteConversations(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
+    val user = ctx.attribute<User>("user")!!
+    val args = ctx.body<DeleteConversationsArgs>()
+    args.ids.forEach { id -> services.conversationService.deleteConversation(id, user) }
+
+    ctx.json(DeleteConversationsResult(success = true))
   }
 }

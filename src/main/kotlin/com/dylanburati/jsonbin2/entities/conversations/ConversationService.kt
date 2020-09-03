@@ -66,6 +66,22 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     return conversation
   }
 
+  fun deleteConversation(id: String, user: User) {
+    val convUser = findConversationUser(id, user.id)
+    check(convUser != null && convUser.isOwner) {
+      "Can't delete conversation $id. User is not the owner"
+    }
+
+    val rowsAffected = session.run(
+      queryOf(
+        """DELETE FROM "conversation" WHERE "id" = ?""",
+        id
+      ).asUpdate
+    )
+
+    if (rowsAffected != 1) throw Exception("Could not delete record")
+  }
+
   fun upsertConversationUser(
     conversationId: String,
     user: User,
