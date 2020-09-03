@@ -177,7 +177,8 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
             LEFT JOIN "conversation_user" "cu" ON "m"."sender_id" = "cu"."id"
             GROUP BY "cu"."conversation_id"
         ) "lastm" ON "cu"."conversation_id" = "lastm"."conversation_id"
-        WHERE "user_id" = ?""",
+        WHERE "user_id" = ?
+        ORDER BY "time" DESC""",
       userId
     )
       .map { row ->
