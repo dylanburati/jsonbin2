@@ -24,6 +24,7 @@ object RealtimeController {
 
   data class MessageArgs(val action: String?, val data: JsonNode)
   data class LoginArgs(val token: String?)
+  data class GetMessagesArgs(val limit: Int?)
   data class LoginResult(
     val type: String,
     val title: String,
@@ -96,7 +97,14 @@ object RealtimeController {
     }
     when (inMessage.action) {
       "getMessages" -> {
-        val history = services.messageService.getConversationHistory(convUser.conversationId)
+        val args = jacksonObjectMapper()
+          .runCatching { treeToValue<GetMessagesArgs>(inMessage.data)!! }
+          .getOrElse { error("Could not get nickname") }
+        check(args.limit == null || args.limit > 0) { "Limit must be positive" }
+        val history = services.messageService.getConversationHistory(
+          convUser.conversationId,
+          args.limit ?: 1000
+        )
         ctx.send(
           GetMessagesResult(
             type = "getMessages",

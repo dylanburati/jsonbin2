@@ -13,7 +13,7 @@ class MessageService(container: ServiceContainer) : BaseService(container) {
     require(limit > 0) { "Limit must be positive" }
     val findManyQuery = queryOf("""
       SELECT "message"."id", "sender_id", "sender"."conversation_id", "sender"."user_id",
-        "sender"."nickname", "time", "target", "content"
+        "sender"."nickname", "sender"."is_owner", "time", "target", "content"
       FROM "message" LEFT JOIN "conversation_user" "sender"
       ON "message"."sender_id" = "sender"."id"
       WHERE "sender"."conversation_id" = ? ORDER BY "time" DESC
@@ -29,7 +29,8 @@ class MessageService(container: ServiceContainer) : BaseService(container) {
             id = row.string("sender_id"),
             conversationId = row.string("conversation_id"),
             userId = row.string("user_id"),
-            nickname = row.string("nickname")
+            nickname = row.string("nickname"),
+            isOwner = row.boolean("is_owner")
           ),
           time = row.instant("time"),
           target = row.string("target"),
