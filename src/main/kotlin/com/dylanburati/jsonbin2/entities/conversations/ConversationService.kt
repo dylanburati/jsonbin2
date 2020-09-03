@@ -18,25 +18,10 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     return session.run(findOneQuery)
   }
 
-  fun getByTitle(title: String): Conversation? {
-    val findOneQuery = queryOf("""SELECT * FROM "conversation" WHERE "title" = ? LIMIT 1""", title)
-      .map { row ->
-        Conversation(
-          id = row.string("id"),
-          title = row.string("title")
-        )
-      }
-      .asSingle
-    return session.run(findOneQuery)
-  }
-
   fun createConversation(
     owner: User,
     args: ConversationController.CreateConversationArgs
   ): Conversation {
-    val exists = getByTitle(args.title)
-    check(exists == null) { "Conversation with the same title exists" }
-
     val id = generateId()
     val conversation = Conversation(id = id, title = args.title)
 
