@@ -44,7 +44,7 @@ object RealtimeController {
       val conv = services.conversationService.getById(convId)
         ?: throw BadRequestResponse("Invalid conversation id: $convId")
       logger.info("Loading conversation $convId")
-      ActiveConversation(conv)
+      ActiveConversation(services.builder.getServices(), conv)
     }
   }
 
@@ -152,7 +152,6 @@ object RealtimeController {
       {
         val active = activeConversations[conversationId]
         if (active != null && active.sessionMap.isEmpty()) {
-          active.close()
           activeConversations.remove(conversationId)
           logger.info("Unloaded conversation $conversationId")
         }

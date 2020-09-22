@@ -93,13 +93,13 @@ object ConversationController {
         "Only the owner can share a private conversation"
       }
     }
-    val inviteUsers = services.session.transaction { tx ->
-      val users = args.usernames.map { username ->
-        val toInvite = services.userService.getByUsername(tx, username)
-        checkNotNull(toInvite) { "User $username does not exist" }
-        toInvite
-      }
-      users
+    val inviteUsers = args.usernames.mapNotNull { username ->
+      val toInvite = services.userService.getByUsername(username)
+      checkNotNull(toInvite) { "User $username does not exist" }
+      toInvite
+    }
+    inviteUsers.forEach { toInvite ->
+      services.conversationService.createConversationUser(conv.id, toInvite, null)
     }
 
     ctx.json(ShareConversationResult(success = true))

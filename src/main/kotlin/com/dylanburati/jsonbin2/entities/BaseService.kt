@@ -1,11 +1,11 @@
 package com.dylanburati.jsonbin2.entities
 
-import kotliquery.TransactionalSession
 import java.security.SecureRandom
 import java.util.*
 
 
-abstract class BaseService(val container: ServiceContainer, val session: TransactionalSession) {
+abstract class BaseService(val container: ServiceContainer) {
+  val database = container.database
   val secureRandom = SecureRandom()
 
   /**

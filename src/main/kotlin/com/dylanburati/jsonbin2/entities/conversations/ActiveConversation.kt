@@ -11,11 +11,11 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-class ActiveConversation(val conversation: Conversation) : AutoCloseable {
+class ActiveConversation(val services: ServiceContainer, val conversation: Conversation) {
+
   private val userInactivityMap = ConcurrentHashMap<String, Instant>()
   val userMap = ConcurrentHashMap<String, AtomicInteger>()
   val sessionMap = ConcurrentHashMap<String, WsContext>()
-  val services = ServiceContainer()
 
   private val handlers: ArrayList<MessageHandler> = arrayListOf(
     GuessrHandler(this),
@@ -76,9 +76,5 @@ class ActiveConversation(val conversation: Conversation) : AutoCloseable {
 
   fun handleNicknameChange(convUser: ConversationUser) {
     for (h in handlers) h.onUserEnter(convUser)
-  }
-
-  override fun close() {
-    services.close()
   }
 }

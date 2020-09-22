@@ -4,17 +4,14 @@ import at.favre.lib.crypto.bcrypt.BCrypt
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import com.auth0.jwt.exceptions.JWTDecodeException
 import com.auth0.jwt.exceptions.JWTVerificationException
-import com.auth0.jwt.exceptions.SignatureVerificationException
 import com.dylanburati.jsonbin2.Config
 import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
+import com.dylanburati.jsonbin2.nonNull
 import io.javalin.http.ForbiddenResponse
 import io.javalin.http.UnauthorizedResponse
-import kotliquery.Session
-import kotliquery.TransactionalSession
-import kotliquery.queryOf
+import me.liuwj.ktorm.dsl.*
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.*
 
@@ -39,48 +36,42 @@ class UserService(container: ServiceContainer) : BaseService(container) {
   private val jwtVerifier = JWT.require(Algorithm.HMAC256(Config.JWT.secret)).build()
 
   fun getById(id: String): User? {
-    val findOneQuery = queryOf("""SELECT * FROM "user" WHERE "id" = ? LIMIT 1""", id)
+    val findOneQuery = database.from(User.TABLE).select()
+      .where { (User.TABLE.id eq id) }
+      .limit(0, 1)
       .map { row ->
         User(
-          id = row.string("id"),
-          username = row.string("username"),
-          authType = User.AuthType.valueOf(row.string("auth_type")),
-          password = row.stringOrNull("password")
+          id = row.nonNull(User.TABLE.id),
+          username = row.nonNull(User.TABLE.username),
+          authType = User.AuthType.valueOf(row.nonNull(User.TABLE.authType)),
+          password = row[User.TABLE.password]
         )
       }
-      .asSingle
-    return session.run(findOneQuery)
+    return findOneQuery.firstOrNull()
   }
 
   fun getByUsername(username: String): User? {
-    val findOneQuery = queryOf("""SELECT * FROM "user" WHERE "username" = ? LIMIT 1""", username)
+    val findOneQuery = database.from(User.TABLE).select()
+      .where { (User.TABLE.username eq username) }
+      .limit(0, 1)
       .map { row ->
         User(
-          id = row.string("id"),
-          username = row.string("username"),
-          authType = User.AuthType.valueOf(row.string("auth_type")),
-          password = row.stringOrNull("password")
+          id = row.nonNull(User.TABLE.id),
+          username = row.nonNull(User.TABLE.username),
+          authType = User.AuthType.valueOf(row.nonNull(User.TABLE.authType)),
+          password = row[User.TABLE.password]
         )
       }
-      .asSingle
-    return session.run(findOneQuery)
+    return findOneQuery.firstOrNull()
   }
 
   fun save(user: User) {
-    val rowsAffected = session.run(
-      queryOf(
-        """
-        INSERT INTO "user" ("id", "username", "auth_type", "password")
-        VALUES (?, ?, ?, ?)
-        """,
-        user.id,
-        user.username,
-        user.authType.name,
-        user.password
-      ).asUpdate
-    )
-
-    if (rowsAffected != 1) throw Exception("Could not insert record")
+    database.insert(User.TABLE) {
+      set(it.id, user.id)
+      set(it.username, user.username)
+      set(it.authType, user.authType.name)
+      set(it.password, user.password)
+    }
   }
 
   fun createUser(username: String, password: String): User {
@@ -97,15 +88,12 @@ class UserService(container: ServiceContainer) : BaseService(container) {
   }
 
   fun createGuest(): User {
-    return session.transaction { tx ->
-      val id = generateId()
-      val username = "guest${secureRandom.nextInt(1000000).toString().padStart(6, '0')}"
-      val user = User(id, username, User.AuthType.NONE, null)
+    val id = generateId()
+    val username = "guest${secureRandom.nextInt(1000000).toString().padStart(6, '0')}"
+    val user = User(id, username, User.AuthType.NONE, null)
 
-      save(user)
-
-      user
-    }
+    save(user)
+    return user
   }
 
   fun authenticateUser(username: String, password: String): User {

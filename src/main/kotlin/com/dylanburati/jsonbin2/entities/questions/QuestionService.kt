@@ -3,10 +3,11 @@ package com.dylanburati.jsonbin2.entities.questions
 import com.dylanburati.jsonbin2.Config
 import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
+import com.dylanburati.jsonbin2.nonNull
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import kotliquery.queryOf
+import me.liuwj.ktorm.dsl.*
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.api.Result
 import org.eclipse.jetty.client.util.BufferingResponseListener
@@ -152,73 +153,59 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
   }
 
   fun getMostRecentSource(): QuestionSource? {
-    val findOneQuery = queryOf(
-      """SELECT * FROM "question_source" ORDER BY "created_at" DESC LIMIT 1"""
-    )
+    val findOneQuery = database.from(QuestionSource.TABLE).select()
+      .orderBy(QuestionSource.TABLE.createdAt.desc())
+      .limit(0, 1)
       .map { row ->
-        QuestionSource(
-          id = row.string("id"),
-          title = row.string("title"),
-          createdAt = row.instant("created_at")
-        )
+        QuestionSource.TABLE.let { t ->
+          QuestionSource(
+            id = row.nonNull(t.id),
+            title = row.nonNull(t.title),
+            createdAt = row.nonNull(t.createdAt)
+          )
+        }
       }
-      .asSingle
-    return session.run(findOneQuery)
+
+    return findOneQuery.firstOrNull()
   }
 
   fun saveSource(questionSource: QuestionSource): QuestionSource {
-    val rowsAffected = session.run(
-      queryOf(
-        """
-        INSERT INTO "question_source" ("id", "title", "created_at")
-        VALUES (?, ?, ?)
-        """,
-        questionSource.id,
-        questionSource.title,
-        questionSource.createdAt
-      ).asUpdate
-    )
+    val rowsAffected = database.insert(QuestionSource.TABLE) {
+      set(it.id, questionSource.id)
+      set(it.title, questionSource.title)
+      set(it.createdAt, questionSource.createdAt)
+    }
 
     if (rowsAffected != 1) throw Exception("Could not insert record")
     return questionSource
   }
 
   fun getRandom(type: String): Question? {
-    val findByTypeQuery = queryOf(
-      """
-      SELECT * FROM "question"
-      WHERE "source_id" IN (SELECT "id" from "question_source" ORDER BY "created_at" DESC LIMIT 1)
-      AND "type" = ?
-      """,
-      type
-    )
-      .map { row ->
-        Question(
-          id = row.string("id"),
-          sourceId = row.string("source_id"),
-          type = row.string("type"),
-          data = jacksonObjectMapper().readTree(row.string("data"))
-        )
-      }
-      .asList
+    val source = getMostRecentSource() ?: return null
 
-    val options = session.run(findByTypeQuery)
+    val options = database.from(Question.TABLE).select()
+      .where { Question.TABLE.sourceId eq source.id }
+      .map { row ->
+        Question.TABLE.let { t ->
+          Question(
+            id = row.nonNull(t.id),
+            sourceId = row.nonNull(t.sourceId),
+            type = row.nonNull(t.type),
+            data = row.nonNull(t.data)
+          )
+        }
+      }
+
     return if (options.isEmpty()) null else options[secureRandom.nextInt(options.size)]
   }
 
   fun save(question: Question): Question {
-    val rowsAffected = session.run(
-      queryOf(
-        """
-        INSERT INTO "question" ("id", "source_id", "type", "data")
-        VALUES (?, ?, ?, ? ::jsonb)
-        """,
-        question.id,
-        question.sourceId,
-        question.type,
-        jacksonObjectMapper().writeValueAsString(question.data)
-      ).asUpdate
-    )
+    val rowsAffected = database.insert(Question.TABLE) {
+      set(it.id, question.id)
+      set(it.sourceId, question.sourceId)
+      set(it.type, question.type)
+      set(it.data, question.data)
+    }
 
     if (rowsAffected != 1) throw Exception("Could not insert record")
     return question
