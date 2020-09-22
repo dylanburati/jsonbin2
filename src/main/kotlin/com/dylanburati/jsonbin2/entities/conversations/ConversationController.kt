@@ -9,7 +9,13 @@ object ConversationController {
   data class CreateConversationArgs(
     val title: String = "",
     val nickname: String = "",
-    val tags: List<String> = listOf()
+    val tags: List<String> = listOf(),
+    val isPrivate: Boolean = false
+  )
+
+  data class ShareConversationArgs(
+    val conversationId: String,
+    val usernames: List<String>
   )
 
   data class DeleteConversationsArgs(
@@ -21,6 +27,10 @@ object ConversationController {
     val title: String,
     val nickname: String,
     val conversationId: String
+  )
+
+  data class ShareConversationResult(
+    val success: Boolean
   )
 
   data class ListConversationsResult(
@@ -67,6 +77,32 @@ object ConversationController {
         conversationId = conv.id
       )
     )
+  }
+
+  fun shareConversation(ctx: Context) {
+    val services = ctx.attribute<ServiceContainer>("services")!!
+    val args = ctx.body<ShareConversationArgs>()
+    val user = ctx.attribute<User>("user")!!
+
+    val conv = services.conversationService.getById(args.conversationId)
+    checkNotNull(conv) { "Conversation ${args.conversationId} does not exist" }
+    val convUsers = services.conversationService.getConversationUsers(args.conversationId)
+    val userInConv = convUsers.find { it.userId == user.id }
+    if (conv.isPrivate) {
+      check(userInConv != null && userInConv.isOwner) {
+        "Only the owner can share a private conversation"
+      }
+    }
+    val inviteUsers = services.session.transaction { tx ->
+      val users = args.usernames.map { username ->
+        val toInvite = services.userService.getByUsername(tx, username)
+        checkNotNull(toInvite) { "User $username does not exist" }
+        toInvite
+      }
+      users
+    }
+
+    ctx.json(ShareConversationResult(success = true))
   }
 
   private fun listConversations(ctx: Context, tag: String?) {

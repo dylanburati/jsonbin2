@@ -11,7 +11,8 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       .map { row ->
         Conversation(
           id = row.string("id"),
-          title = row.string("title")
+          title = row.string("title"),
+          isPrivate = row.boolean("is_private")
         )
       }
       .asSingle
@@ -23,13 +24,14 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     args: ConversationController.CreateConversationArgs
   ): Conversation {
     val id = generateId()
-    val conversation = Conversation(id = id, title = args.title)
+    val conversation = Conversation(id = id, title = args.title, isPrivate = args.isPrivate)
 
     val rowsAffected = session.run(
       queryOf(
-        """INSERT INTO "conversation" ("id", "title") VALUES (?, ?)""",
+        """INSERT INTO "conversation" ("id", "title", "is_private") VALUES (?, ?, ?)""",
         conversation.id,
-        conversation.title
+        conversation.title,
+        conversation.isPrivate
       ).asUpdate
     )
 
@@ -47,7 +49,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       if (tagRowsAffected != 1) throw Exception("Could not insert record")
     }
 
-    upsertConversationUser(conversation.id, owner, args.nickname, isOwner = true)
+    createConversationUser(conversation.id, owner, args.nickname, isOwner = true)
     return conversation
   }
 
@@ -67,13 +69,13 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     if (rowsAffected != 1) throw Exception("Could not delete record")
   }
 
-  fun upsertConversationUser(
+  fun createConversationUser(
     conversationId: String,
     user: User,
     nickname: String?,
     isOwner: Boolean = false
   ): ConversationUser {
-    val convUser = findConversationUser(conversationId, user.id) ?: ConversationUser(
+    val convUser = ConversationUser(
       id = generateId(),
       conversationId = conversationId,
       userId = user.id,
@@ -81,24 +83,33 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       isOwner = isOwner
     )
 
-    if (nickname != null) convUser.nickname = nickname
-    return upsertConversationUser(convUser)
-  }
-
-  fun upsertConversationUser(convUser: ConversationUser): ConversationUser {
     val rowsAffected = session.run(
       queryOf(
         """
         INSERT INTO "conversation_user" ("id", "conversation_id", "user_id", "nickname", "is_owner")
         VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT ("conversation_id", "user_id") DO UPDATE SET "nickname" = ?
         """,
         convUser.id,
         convUser.conversationId,
         convUser.userId,
         convUser.nickname,
-        convUser.isOwner,
-        convUser.nickname
+        convUser.isOwner
+      ).asUpdate
+    )
+
+    if (rowsAffected != 1) throw Exception("Could not insert record")
+
+    return convUser
+  }
+
+  fun updateConversationUser(convUser: ConversationUser): ConversationUser {
+    val rowsAffected = session.run(
+      queryOf(
+        """
+        UPDATE "conversation_user" SET "nickname" = ? WHERE "id" = ?
+        """,
+        convUser.nickname,
+        convUser.id
       ).asUpdate
     )
 
@@ -154,7 +165,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
 
   fun getUserConversations(userId: String): List<ConversationUser> {
     val findAllQuery = queryOf(
-      """SELECT "cu".*, "conv"."title", "lastm"."time"
+      """SELECT "cu".*, "conv"."title", "conv"."is_private", "lastm"."time"
         FROM "conversation_user" "cu"
         LEFT JOIN "conversation" "conv" ON "conv"."id" = "conversation_id"
         LEFT JOIN (
@@ -175,7 +186,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
           nickname = row.string("nickname"),
           isOwner = row.boolean("is_owner")
         )
-        convUser.conversation = Conversation(id = convId, title = row.string("title")).apply {
+        convUser.conversation = Conversation(id = convId, title = row.string("title"), isPrivate = row.boolean("is_private")).apply {
           this.updatedAt = row.instantOrNull("time")
         }
         convUser

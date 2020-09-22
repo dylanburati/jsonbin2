@@ -7,7 +7,8 @@ import java.time.Instant
 
 data class Conversation(
   var id: String,
-  var title: String
+  var title: String,
+  var isPrivate: Boolean
 ) {
   @JsonInclude(value = JsonInclude.Include.NON_NULL)
   @JsonSerialize(using = InstantToEpoch::class)

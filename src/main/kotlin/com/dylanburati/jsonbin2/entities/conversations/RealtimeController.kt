@@ -56,9 +56,13 @@ object RealtimeController {
     val user = services.userService.verifyJWT(args.token)
 
     val userList = services.conversationService.getConversationUsers(convId).toMutableList()
-    val convUser =
-      services.conversationService.upsertConversationUser(convId, user, null)
     val active = activeConversations[convId]!!
+    val existingConvUser = services.conversationService.findConversationUser(convId, user.id)
+    if (active.conversation.isPrivate && existingConvUser == null) {
+      throw UnauthorizedResponse("An invite is required to join the conversation")
+    }
+    val convUser =
+      existingConvUser ?: services.conversationService.createConversationUser(convId, user, null)
     allSessions[ctx.sessionId] = convUser
     active.handleSessionOpen(ctx, convUser)
 
@@ -118,7 +122,7 @@ object RealtimeController {
           .getOrElse { error("Could not get nickname") }
         ConversationController.validateNickname(nick)
         convUser.nickname = nick
-        services.conversationService.upsertConversationUser(convUser)
+        services.conversationService.updateConversationUser(convUser)
         val active = activeConversations[convUser.conversationId]!!
         active.broadcast(SetNicknameResult(type = "setNickname", data = convUser))
         active.handleNicknameChange(convUser)

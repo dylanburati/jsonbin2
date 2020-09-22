@@ -22,7 +22,8 @@ class ServiceContainer : AutoCloseable {
   }
 
   private val logger = Log.getLogger(ServiceContainer::class.java)
-  val session = sessionOf(HikariCP.dataSource())
+  private val session = sessionOf(HikariCP.dataSource())
+
   val userService = UserService(this)
   val conversationService = ConversationService(this)
   val messageService = MessageService(this)
