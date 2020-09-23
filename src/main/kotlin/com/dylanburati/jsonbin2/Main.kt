@@ -65,6 +65,7 @@ fun main() {
       get(ConversationController::listConversations)
       get(":tag", ConversationController::listConversationsWithTag)
       post(ConversationController::createConversation)
+      post("share", ConversationController::shareConversation)
       delete(ConversationController::deleteConversations)
     }
 
