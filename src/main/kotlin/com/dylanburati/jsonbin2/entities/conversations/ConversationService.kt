@@ -199,11 +199,13 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
         }
       }
 
-    return findConvsQuery.map { (conv, convUser) ->
+    val convUsers = findConvsQuery.map { (conv, convUser) ->
       conv.updatedAt = updateTimeMap[conv.id]
       conv.tags = tagMap[conv.id] ?: listOf()
       convUser.conversation = conv
       convUser
     }
+
+    return convUsers.sortedByDescending { it.conversation?.updatedAt }
   }
 }
