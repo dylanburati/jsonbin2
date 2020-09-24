@@ -5,7 +5,7 @@ import java.util.*
 
 
 abstract class BaseService(val container: ServiceContainer) {
-  val session = container.session
+  val database = container.database
   val secureRandom = SecureRandom()
 
   /**

@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.treeToValue
+import me.liuwj.ktorm.jackson.json
+import me.liuwj.ktorm.schema.Table
+import me.liuwj.ktorm.schema.text
+import me.liuwj.ktorm.schema.varchar
 import java.util.*
 
 data class Question(
@@ -47,5 +51,12 @@ data class Question(
       content.data = content.data.take(6).toMutableList()
     }
     return content
+  }
+
+  object TABLE : Table<Nothing>("question") {
+    val id = varchar("id").primaryKey()
+    val sourceId = varchar("source_id")
+    val type = text("type")
+    val data = json<JsonNode>("data")
   }
 }

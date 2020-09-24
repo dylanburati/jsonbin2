@@ -44,7 +44,7 @@ object RealtimeController {
       val conv = services.conversationService.getById(convId)
         ?: throw BadRequestResponse("Invalid conversation id: $convId")
       logger.info("Loading conversation $convId")
-      ActiveConversation(conv)
+      ActiveConversation(services.builder.getServices(), conv)
     }
   }
 
@@ -56,20 +56,23 @@ object RealtimeController {
     val user = services.userService.verifyJWT(args.token)
 
     val userList = services.conversationService.getConversationUsers(convId).toMutableList()
-    val convUser =
-      services.conversationService.upsertConversationUser(convId, user, null)
     val active = activeConversations[convId]!!
+    val existingConvUser = services.conversationService.findConversationUser(convId, user.id)
+    if (active.conversation.isPrivate && existingConvUser == null) {
+      throw UnauthorizedResponse("An invite is required to join the conversation")
+    }
+    val convUser =
+      existingConvUser ?: services.conversationService.createConversationUser(convId, user, null)
     allSessions[ctx.sessionId] = convUser
     active.handleSessionOpen(ctx, convUser)
 
-    val isFirstLogin = userList.none { it.id == convUser.id }
-    if (isFirstLogin) userList.add(convUser)
+    if (existingConvUser == null) userList.add(convUser)
 
     ctx.send(LoginResult(
       type = "login",
       title = active.conversation.title,
       nickname = convUser.nickname,
-      isFirstLogin = isFirstLogin,
+      isFirstLogin = existingConvUser == null,
       users = userList.map {
         JsonExtended(it).also { obj ->
           obj.extensions["isActive"] = active.userMap[it.id].let { ct ->
@@ -118,7 +121,7 @@ object RealtimeController {
           .getOrElse { error("Could not get nickname") }
         ConversationController.validateNickname(nick)
         convUser.nickname = nick
-        services.conversationService.upsertConversationUser(convUser)
+        services.conversationService.updateConversationUser(convUser)
         val active = activeConversations[convUser.conversationId]!!
         active.broadcast(SetNicknameResult(type = "setNickname", data = convUser))
         active.handleNicknameChange(convUser)
@@ -148,7 +151,6 @@ object RealtimeController {
       {
         val active = activeConversations[conversationId]
         if (active != null && active.sessionMap.isEmpty()) {
-          active.close()
           activeConversations.remove(conversationId)
           logger.info("Unloaded conversation $conversationId")
         }

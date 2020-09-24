@@ -2,20 +2,27 @@ package com.dylanburati.jsonbin2.entities.conversations
 
 import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
+import com.dylanburati.jsonbin2.entities.messages.Message
 import com.dylanburati.jsonbin2.entities.users.User
-import kotliquery.queryOf
+import com.dylanburati.jsonbin2.nonNull
+import me.liuwj.ktorm.dsl.*
 
 class ConversationService(container: ServiceContainer) : BaseService(container) {
   fun getById(id: String): Conversation? {
-    val findOneQuery = queryOf("""SELECT * FROM "conversation" WHERE "id" = ? LIMIT 1""", id)
+    val findOneQuery = database.from(Conversation.TABLE).select()
+      .where { Conversation.TABLE.id eq id }
+      .limit(0, 1)
       .map { row ->
-        Conversation(
-          id = row.string("id"),
-          title = row.string("title")
-        )
+        Conversation.TABLE.let { t ->
+          Conversation(
+            id = row.nonNull(t.id),
+            title = row.nonNull(t.title),
+            isPrivate = row.nonNull(t.isPrivate)
+          )
+        }
       }
-      .asSingle
-    return session.run(findOneQuery)
+
+    return findOneQuery.firstOrNull()
   }
 
   fun createConversation(
@@ -23,31 +30,26 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     args: ConversationController.CreateConversationArgs
   ): Conversation {
     val id = generateId()
-    val conversation = Conversation(id = id, title = args.title)
+    val conversation = Conversation(id = id, title = args.title, isPrivate = args.isPrivate)
 
-    val rowsAffected = session.run(
-      queryOf(
-        """INSERT INTO "conversation" ("id", "title") VALUES (?, ?)""",
-        conversation.id,
-        conversation.title
-      ).asUpdate
-    )
+    val rowsAffected = database.insert(Conversation.TABLE) {
+      set(it.id, conversation.id)
+      set(it.title, conversation.title)
+      set(it.isPrivate, conversation.isPrivate)
+    }
 
     if (rowsAffected != 1) throw Exception("Could not insert record")
 
-    args.tags.forEach { tag ->
-      val tagRowsAffected = session.run(
-        queryOf(
-          """INSERT INTO "conversation_tag" ("conversation_id", "tag") VALUES (?, ?)""",
-          conversation.id,
-          tag
-        ).asUpdate
-      )
-
-      if (tagRowsAffected != 1) throw Exception("Could not insert record")
+    database.batchInsert(ConversationTag.TABLE) {
+      for (tag in args.tags) {
+        item {
+          set(it.conversationId, conversation.id)
+          set(it.tag, tag)
+        }
+      }
     }
 
-    upsertConversationUser(conversation.id, owner, args.nickname, isOwner = true)
+    createConversationUser(conversation.id, owner, args.nickname, isOwner = true)
     return conversation
   }
 
@@ -57,23 +59,20 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       "Can't delete conversation $id. User is not the owner"
     }
 
-    val rowsAffected = session.run(
-      queryOf(
-        """DELETE FROM "conversation" WHERE "id" = ?""",
-        id
-      ).asUpdate
-    )
+    val rowsAffected = database.delete(Conversation.TABLE) {
+      it.id eq id
+    }
 
     if (rowsAffected != 1) throw Exception("Could not delete record")
   }
 
-  fun upsertConversationUser(
+  fun createConversationUser(
     conversationId: String,
     user: User,
     nickname: String?,
     isOwner: Boolean = false
   ): ConversationUser {
-    val convUser = findConversationUser(conversationId, user.id) ?: ConversationUser(
+    val convUser = ConversationUser(
       id = generateId(),
       conversationId = conversationId,
       userId = user.id,
@@ -81,26 +80,26 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
       isOwner = isOwner
     )
 
-    if (nickname != null) convUser.nickname = nickname
-    return upsertConversationUser(convUser)
+    val rowsAffected = database.insert(ConversationUser.TABLE) {
+      set(it.id, convUser.id)
+      set(it.conversationId, convUser.conversationId)
+      set(it.userId, convUser.userId)
+      set(it.nickname, convUser.nickname)
+      set(it.isOwner, convUser.isOwner)
+    }
+
+    if (rowsAffected != 1) throw Exception("Could not insert record")
+
+    return convUser
   }
 
-  fun upsertConversationUser(convUser: ConversationUser): ConversationUser {
-    val rowsAffected = session.run(
-      queryOf(
-        """
-        INSERT INTO "conversation_user" ("id", "conversation_id", "user_id", "nickname", "is_owner")
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT ("conversation_id", "user_id") DO UPDATE SET "nickname" = ?
-        """,
-        convUser.id,
-        convUser.conversationId,
-        convUser.userId,
-        convUser.nickname,
-        convUser.isOwner,
-        convUser.nickname
-      ).asUpdate
-    )
+  fun updateConversationUser(convUser: ConversationUser): ConversationUser {
+    val rowsAffected = database.update(ConversationUser.TABLE) {
+      set(it.nickname, convUser.nickname)
+      where {
+        it.id eq convUser.id
+      }
+    }
 
     if (rowsAffected != 1) throw Exception("Could not insert record")
 
@@ -111,87 +110,100 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
     conversationId: String,
     userId: String
   ): ConversationUser? {
-    val findOneQuery = queryOf(
-      """
-      SELECT * FROM "conversation_user"
-      WHERE "conversation_id" = ? AND "user_id" = ? LIMIT 1
-      """,
-      conversationId,
-      userId
-    )
-      .map { row ->
-        ConversationUser(
-          id = row.string("id"),
-          conversationId = row.string("conversation_id"),
-          userId = row.string("user_id"),
-          nickname = row.string("nickname"),
-          isOwner = row.boolean("is_owner")
-        )
+    val findOneQuery = database.from(ConversationUser.TABLE).select()
+      .where {
+        (ConversationUser.TABLE.conversationId eq conversationId) and
+            (ConversationUser.TABLE.userId eq userId)
       }
-      .asSingle
+      .map { row ->
+        ConversationUser.TABLE.let { t ->
+          ConversationUser(
+            id = row.nonNull(t.id),
+            conversationId = row.nonNull(t.conversationId),
+            userId = row.nonNull(t.userId),
+            nickname = row.nonNull(t.nickname),
+            isOwner = row.nonNull(t.isOwner)
+          )
+        }
+      }
 
-    return session.run(findOneQuery)
+    return findOneQuery.firstOrNull()
   }
 
   fun getConversationUsers(conversationId: String): List<ConversationUser> {
-    val findAllQuery = queryOf(
-      """SELECT * FROM "conversation_user" WHERE "conversation_id" = ?""",
-      conversationId
-    )
+    val findAllQuery = database.from(ConversationUser.TABLE).select()
+      .where { ConversationUser.TABLE.conversationId eq conversationId }
       .map { row ->
-        ConversationUser(
-          id = row.string("id"),
-          conversationId = row.string("conversation_id"),
-          userId = row.string("user_id"),
-          nickname = row.string("nickname"),
-          isOwner = row.boolean("is_owner")
-        )
+        ConversationUser.TABLE.let { t ->
+          ConversationUser(
+            id = row.nonNull(t.id),
+            conversationId = row.nonNull(t.conversationId),
+            userId = row.nonNull(t.userId),
+            nickname = row.nonNull(t.nickname),
+            isOwner = row.nonNull(t.isOwner)
+          )
+        }
       }
-      .asList
 
-    return session.run(findAllQuery)
+    return findAllQuery
   }
 
   fun getUserConversations(userId: String): List<ConversationUser> {
-    val findAllQuery = queryOf(
-      """SELECT "cu".*, "conv"."title", "lastm"."time"
-        FROM "conversation_user" "cu"
-        LEFT JOIN "conversation" "conv" ON "conv"."id" = "conversation_id"
-        LEFT JOIN (
-            SELECT "cu"."conversation_id", MAX("m"."time") "time" FROM "message" "m"
-            LEFT JOIN "conversation_user" "cu" ON "m"."sender_id" = "cu"."id"
-            GROUP BY "cu"."conversation_id"
-        ) "lastm" ON "cu"."conversation_id" = "lastm"."conversation_id"
-        WHERE "user_id" = ?
-        ORDER BY "time" DESC""",
-      userId
-    )
+    val findConvsQuery = database.from(ConversationUser.TABLE)
+      .leftJoin(
+        Conversation.TABLE, on = ConversationUser.TABLE.conversationId eq Conversation.TABLE.id)
+      .select()
+      .where { ConversationUser.TABLE.userId eq userId }
       .map { row ->
-        val convId = row.string("conversation_id")
-        val convUser = ConversationUser(
-          id = row.string("id"),
-          conversationId = convId,
-          userId = row.string("user_id"),
-          nickname = row.string("nickname"),
-          isOwner = row.boolean("is_owner")
-        )
-        convUser.conversation = Conversation(id = convId, title = row.string("title")).apply {
-          this.updatedAt = row.instantOrNull("time")
+        (Conversation.TABLE to ConversationUser.TABLE).let { (c, cu) ->
+          val convUser = ConversationUser(
+            id = row.nonNull(cu.id),
+            conversationId = row.nonNull(c.id),
+            userId = row.nonNull(cu.userId),
+            nickname = row.nonNull(cu.nickname),
+            isOwner = row.nonNull(cu.isOwner)
+          )
+          val conv = Conversation(
+            id = row.nonNull(c.id),
+            title = row.nonNull(c.title),
+            isPrivate = row.nonNull(c.isPrivate)
+          )
+          conv to convUser
         }
-        convUser
       }
-      .asList
 
-    val convUsers = session.run(findAllQuery)
-    convUsers.forEach { cu ->
-      val conv = cu.conversation ?: error("")
-      conv.tags = session.run(
-        queryOf("""SELECT "tag" FROM "conversation_tag" WHERE "conversation_id" = ?""", conv.id)
-          .map { row -> row.string("tag") }
-          .asList
-      )
+    val convIds = findConvsQuery.map { it.first.id }
+
+    val updateTimeMap = database.from(Message.TABLE)
+      .leftJoin(ConversationUser.TABLE, on = Message.TABLE.senderId eq ConversationUser.TABLE.id)
+      .select(ConversationUser.TABLE.conversationId, max(Message.TABLE.time))
+      .groupBy(ConversationUser.TABLE.conversationId)
+      .where { ConversationUser.TABLE.conversationId inList convIds }
+      .map { row ->
+        val convId = row.getString(1) ?: error("")
+        val updatedAt = row.getInstant(2)
+        convId to updatedAt
+      }
+      .associate { it }
+
+    val tagMap = mutableMapOf<String, MutableList<String>>()
+    database.from(ConversationTag.TABLE).select()
+      .where { ConversationTag.TABLE.conversationId inList convIds }
+      .forEach { row ->
+        ConversationTag.TABLE.let { t ->
+          val convId = row.nonNull(t.conversationId)
+          val tag = row.nonNull(t.tag)
+          tagMap.compute(convId) { k, v ->
+            v?.apply { add(tag) } ?: mutableListOf(tag)
+          }
+        }
+      }
+
+    return findConvsQuery.map { (conv, convUser) ->
+      conv.updatedAt = updateTimeMap[conv.id]
+      conv.tags = tagMap[conv.id] ?: listOf()
+      convUser.conversation = conv
+      convUser
     }
-
-    return convUsers
   }
 }

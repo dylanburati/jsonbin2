@@ -1,5 +1,6 @@
 package com.dylanburati.jsonbin2
 
+import com.dylanburati.jsonbin2.entities.ServiceBuilder
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationController
 import com.dylanburati.jsonbin2.entities.conversations.RealtimeController
@@ -12,28 +13,34 @@ import io.javalin.http.*
 import io.javalin.websocket.WsExceptionHandler
 
 fun main() {
-  ServiceContainer.configure()
+  ServiceBuilder.runMigrations()
   val app = Javalin.create { config ->
     config.enableCorsForAllOrigins()
   }.start(7000)
 
+  val serviceBuilder = ServiceBuilder()
+  app.events { dispatcher ->
+    dispatcher.serverStopping {
+      serviceBuilder.close()
+    }
+  }
   app.before { ctx ->
-    ctx.attribute("services", ServiceContainer())
+    ctx.attribute("services", serviceBuilder.getServices())
   }
   app.after { ctx ->
     val services = ctx.attribute<ServiceContainer>("services")
-    services?.close()
+    // todo transactions
   }
   app.wsBefore { ws ->
     ws.onConnect { ctx ->
-      ctx.attribute("services", ServiceContainer())
+      ctx.attribute("services", serviceBuilder.getServices())
       ctx.session.idleTimeout = 3600L * 1000
     }
   }
   app.wsAfter { ws ->
     ws.onClose { ctx ->
       val services = ctx.attribute<ServiceContainer>("services")
-      services?.close()
+      // todo transactions
     }
   }
 
@@ -65,6 +72,7 @@ fun main() {
       get(ConversationController::listConversations)
       get(":tag", ConversationController::listConversationsWithTag)
       post(ConversationController::createConversation)
+      post("share", ConversationController::shareConversation)
       delete(ConversationController::deleteConversations)
     }
 
