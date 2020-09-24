@@ -44,7 +44,7 @@ object RealtimeController {
       val conv = services.conversationService.getById(convId)
         ?: throw BadRequestResponse("Invalid conversation id: $convId")
       logger.info("Loading conversation $convId")
-      ActiveConversation(conv)
+      ActiveConversation(services.builder.getServices(), conv)
     }
   }
 
@@ -66,14 +66,13 @@ object RealtimeController {
     allSessions[ctx.sessionId] = convUser
     active.handleSessionOpen(ctx, convUser)
 
-    val isFirstLogin = userList.none { it.id == convUser.id }
-    if (isFirstLogin) userList.add(convUser)
+    if (existingConvUser == null) userList.add(convUser)
 
     ctx.send(LoginResult(
       type = "login",
       title = active.conversation.title,
       nickname = convUser.nickname,
-      isFirstLogin = isFirstLogin,
+      isFirstLogin = existingConvUser == null,
       users = userList.map {
         JsonExtended(it).also { obj ->
           obj.extensions["isActive"] = active.userMap[it.id].let { ct ->
@@ -152,7 +151,6 @@ object RealtimeController {
       {
         val active = activeConversations[conversationId]
         if (active != null && active.sessionMap.isEmpty()) {
-          active.close()
           activeConversations.remove(conversationId)
           logger.info("Unloaded conversation $conversationId")
         }

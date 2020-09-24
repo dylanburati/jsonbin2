@@ -3,58 +3,49 @@ package com.dylanburati.jsonbin2.entities.messages
 import com.dylanburati.jsonbin2.entities.BaseService
 import com.dylanburati.jsonbin2.entities.ServiceContainer
 import com.dylanburati.jsonbin2.entities.conversations.ConversationUser
+import com.dylanburati.jsonbin2.nonNull
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import kotliquery.queryOf
+import me.liuwj.ktorm.dsl.*
 import java.time.Instant
 
 class MessageService(container: ServiceContainer) : BaseService(container) {
   fun getConversationHistory(conversationId: String, limit: Int = 1000): List<Message> {
     require(limit > 0) { "Limit must be positive" }
-    val findManyQuery = queryOf("""
-      SELECT "message"."id", "sender_id", "sender"."conversation_id", "sender"."user_id",
-        "sender"."nickname", "sender"."is_owner", "time", "target", "content"
-      FROM "message" LEFT JOIN "conversation_user" "sender"
-      ON "message"."sender_id" = "sender"."id"
-      WHERE "sender"."conversation_id" = ? ORDER BY "time" DESC
-      LIMIT ?
-      """,
-      conversationId,
-      limit
-    )
+    val findManyQuery = database.from(Message.TABLE)
+      .leftJoin(ConversationUser.TABLE, on = Message.TABLE.senderId eq ConversationUser.TABLE.id)
+      .select()
+      .where { ConversationUser.TABLE.conversationId eq conversationId }
+      .limit(0, limit)
+      .orderBy(Message.TABLE.time.desc())
       .map { row ->
-        Message(
-          id = row.string("id"),
-          sender = ConversationUser(
-            id = row.string("sender_id"),
-            conversationId = row.string("conversation_id"),
-            userId = row.string("user_id"),
-            nickname = row.string("nickname"),
-            isOwner = row.boolean("is_owner")
-          ),
-          time = row.instant("time"),
-          target = row.string("target"),
-          content = jacksonObjectMapper().readTree(row.string("content"))
-        )
+        (Message.TABLE to ConversationUser.TABLE).let { (m, cu) ->
+          Message(
+            id = row.nonNull(m.id),
+            sender = ConversationUser(
+              id = row.nonNull(cu.id),
+              conversationId = row.nonNull(cu.conversationId),
+              userId = row.nonNull(cu.userId),
+              nickname = row.nonNull(cu.nickname),
+              isOwner = row.nonNull(cu.isOwner)
+            ),
+            time = row.nonNull(m.time),
+            target = row.nonNull(m.target),
+            content = row.nonNull(m.content)
+          )
+        }
       }
-      .asList
-    return session.run(findManyQuery).asReversed()
+
+    return findManyQuery.asReversed()
   }
 
   fun save(message: Message) {
-    val rowsAffected = session.run(
-      queryOf(
-        """
-        INSERT INTO "message" ("id", "sender_id", "time", "target", "content")
-        VALUES (?, ?, ?, ?, ? ::jsonb)
-        """,
-        message.id,
-        message.sender.id,
-        message.time,
-        message.target,
-        jacksonObjectMapper().writeValueAsString(message.content)
-      ).asUpdate
-    )
+    val rowsAffected = database.insert(Message.TABLE) {
+      set(it.id, message.id)
+      set(it.senderId, message.sender.id)
+      set(it.time, message.time)
+      set(it.target, message.target)
+      set(it.content, message.content)
+    }
 
     if (rowsAffected != 1) throw Exception("Could not insert record")
   }
