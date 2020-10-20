@@ -1,0 +1,11 @@
+replicaCount: 1
+imageTag: ""
+dbServiceName: jsonbin2-postgresql
+envSecrets:
+- POSTGRES_USER
+- POSTGRES_PASSWORD
+- JWT_SECRET
+- GSHEETS_LAMBDA_API_KEY
+- GSHEETS_LAMBDA_ENDPOINT
+- GSHEETS_FILE_ID
+

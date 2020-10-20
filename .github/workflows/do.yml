@@ -1,0 +1,52 @@
+on:
+  push:
+    branches:
+      - master
+
+name: Push to DigitalOcean Kubernetes
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11.0.x
+
+      - name: Login to Docker Hub
+        run: docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_ACCESS_TOKEN }}"
+
+      - name: Build, tag, and push image 'jsonbin2' to Docker Hub
+        env:
+          REGISTRY: docker.io
+          REPOSITORY: dylanburati/jsonbin2
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          ./gradlew build
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig show jsonbin2 > $GITHUB_WORKSPACE/.kubeconfig
+
+      - name: Install/upgrade charts
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          export KUBECONFIG=$GITHUB_WORKSPACE/.kubeconfig
+          helm upgrade jsonbin2-postgresql ./k8s/postgresql --install --atomic --cleanup-on-fail
+          helm upgrade jsonbin2-jsonbin ./k8s/jsonbin --install --atomic --cleanup-on-fail \
+            --set-string imageTag="$IMAGE_TAG"
+          helm upgrade jsonbin2-nginx bitnami/nginx-ingress-controller --install --atomic --cleanup-on-fail

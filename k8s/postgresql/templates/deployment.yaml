@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jsonbin2-postgresql
+spec:
+  selector:
+    matchLabels:
+      app: jsonbin2
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: jsonbin2
+    spec:
+      containers:
+      - image: postgres:12.3
+        imagePullPolicy: Always
+        name: postgresql
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: jsonbin
+        {{- range .Values.envSecrets }}
+        - name: {{ . }}
+          valueFrom:
+            secretKeyRef:
+              key: {{ . }}
+              name: jsonbin2-env-secret
+        {{- end }}

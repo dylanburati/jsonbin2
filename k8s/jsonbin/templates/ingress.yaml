@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: jsonbin2-jsonbin
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+    #cert-manager.io/issuer: "letsencrypt-staging"
+spec:
+  #tls:
+  #- hosts:
+  #  - v02.datagame.live
+  #  secretName: quickstart-example-tls
+  rules:
+  - host: v02.datagame.live
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: jsonbin2-jsonbin
+          servicePort: 80

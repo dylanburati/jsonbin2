@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jsonbin2-jsonbin
+spec:
+  selector:
+    matchLabels:
+      app: jsonbin2
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: jsonbin2
+    spec:
+      containers:
+      - image: dylanburati/jsonbin2:{{ .Values.imageTag }}
+        imagePullPolicy: Always
+        name: jsonbin
+        ports:
+        - containerPort: 7000
+        env:
+        - name: POSTGRES_HOST
+          value: {{ .Values.dbServiceName }}
+        {{- range .Values.envSecrets }}
+        - name: {{ . }}
+          valueFrom:
+            secretKeyRef:
+              key: {{ . }}
+              name: jsonbin2-env-secret
+        {{- end }}
