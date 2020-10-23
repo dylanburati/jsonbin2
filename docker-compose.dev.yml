@@ -1,0 +1,8 @@
+version: '2'
+
+services:
+  jsonbin:
+    image: dylanburati/jsonbin2
+
+  postgresql:
+    image: postgres:12.3
