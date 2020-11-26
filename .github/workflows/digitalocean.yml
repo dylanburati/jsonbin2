@@ -32,6 +32,7 @@ jobs:
           ./gradlew build
           docker build -t $REGISTRY/$REPOSITORY:latest -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:latest
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
