@@ -2,7 +2,32 @@ version: '2'
 
 services:
   jsonbin:
-    image: dylanburati/jsonbin2
+    build: .
+    restart: always
+    environment:
+      POSTGRES_HOST: postgresql
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+      JWT_SECRET:
+      GSHEETS_LAMBDA_API_KEY:
+      GSHEETS_LAMBDA_ENDPOINT:
+      GSHEETS_FILE_ID:
+    ports:
+      - "7000:7000"
+    depends_on:
+      - postgresql
 
   postgresql:
     image: postgres:12.3
+    restart: always
+    environment:
+      POSTGRES_DB: jsonbin
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data: {}
