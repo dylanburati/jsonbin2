@@ -11,5 +11,5 @@ USER $APPLICATION_USER
 COPY ./build/libs/jsonbin2.jar /app/jsonbin2.jar
 WORKDIR /app
 
-ENV JDK_JAVA_OPTIONS -Xms512m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication
+ENV JDK_JAVA_OPTIONS -Xms384m -Xmx384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication
 CMD ["java", "-server", "-jar", "jsonbin2.jar"]

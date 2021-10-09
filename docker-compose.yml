@@ -12,7 +12,7 @@ services:
       GSHEETS_LAMBDA_API_KEY:
       GSHEETS_LAMBDA_ENDPOINT:
       GSHEETS_FILE_ID:
-    mem_limit: 512M
+    mem_limit: 384M
     ports:
       - "7000:7000"
     depends_on:
@@ -25,7 +25,7 @@ services:
       POSTGRES_DB: jsonbin
       POSTGRES_USER:
       POSTGRES_PASSWORD:
-    mem_limit: 256M
+    mem_limit: 192M
     ports:
       - "5432:5432"
     volumes:
