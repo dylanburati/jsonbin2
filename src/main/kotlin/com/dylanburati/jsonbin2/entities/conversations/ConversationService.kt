@@ -193,7 +193,7 @@ class ConversationService(container: ServiceContainer) : BaseService(container) 
         ConversationTag.TABLE.let { t ->
           val convId = row.nonNull(t.conversationId)
           val tag = row.nonNull(t.tag)
-          tagMap.compute(convId) { k, v ->
+          tagMap.compute(convId) { _, v ->
             v?.apply { add(tag) } ?: mutableListOf(tag)
           }
         }

@@ -17,6 +17,8 @@ class ServiceBuilder : AutoCloseable {
       dataSourceProperties = Properties().apply {
         setProperty("stringtype", "unspecified")
       }
+
+      setMaximumPoolSize(4)
     }
 
     fun runMigrations() {

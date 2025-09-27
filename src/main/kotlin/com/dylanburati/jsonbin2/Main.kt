@@ -27,10 +27,10 @@ fun main() {
   app.before { ctx ->
     ctx.attribute("services", serviceBuilder.getServices())
   }
-  app.after { ctx ->
-    val services = ctx.attribute<ServiceContainer>("services")
-    // todo transactions
-  }
+  // no cleanup at the moment
+  // app.after { ctx ->
+  //  val services = ctx.attribute<ServiceContainer>("services")
+  // }
   app.wsBefore { ws ->
     ws.onConnect { ctx ->
       ctx.attribute("services", serviceBuilder.getServices())

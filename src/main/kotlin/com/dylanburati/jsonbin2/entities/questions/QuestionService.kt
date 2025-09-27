@@ -361,8 +361,8 @@ class QuestionService(container: ServiceContainer) : BaseService(container) {
               else -> null
             }
           }
-          val dataMin = dataSeq.min() ?: error("LineGraph processing can't find any data points")
-          val dataMax = dataSeq.max() ?: error("LineGraph processing can't find any data points")
+          val dataMin = dataSeq.minOrNull() ?: error("LineGraph processing can't find any data points")
+          val dataMax = dataSeq.maxOrNull() ?: error("LineGraph processing can't find any data points")
           val range = if (dataMin == dataMax) 1f else (dataMax - dataMin)
           val precision = 10.0f.pow(ceil(log10(range)) - 1)
           if (needsMin) json["yMin"] = floor(dataMin / precision) * precision
